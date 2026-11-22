@@ -68,7 +68,12 @@ def parse_rows(rows, out, meta):
         else:
             continue
         if code == "USD" and r[6] and r[7]:
-            meta["updated"] = r[6].replace(".", "/").replace("-", "/") + " " + r[7]
+            # 发布日期列本身可能已带时间（如 "2026/11/23 00:00:05"），直接拼接会让时间重复；
+            # 只取第一次出现的日期和时间，避免 "00:00:05 00:00:05" 导致页面解析失败。
+            raw = (r[6] + " " + r[7]).replace(".", "/").replace("-", "/")
+            m = re.search(r"(\d{4}/\d{1,2}/\d{1,2})\s+(\d{1,2}:\d{2}(?::\d{2})?)", raw)
+            if m:
+                meta["updated"] = m.group(1) + " " + m.group(2)
 
 
 def main():
