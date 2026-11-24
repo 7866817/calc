@@ -1,86 +1,86 @@
 {
- "updated": "2026/11/25 02:11:20",
+ "updated": "2026/11/25 02:49:25",
  "currencies": {
   "aed": {
-   "spot_buy": 180.18
+   "spot_buy": 180.2
   },
   "aud": {
-   "spot_buy": 441.57
+   "spot_buy": 441.45
   },
   "brl": {
-   "spot_buy": 107.41,
+   "spot_buy": 107.39,
    "cash_only": true
   },
   "cad": {
-   "spot_buy": 465.46
+   "spot_buy": 465.57
   },
   "chf": {
-   "spot_buy": 794.91
+   "spot_buy": 794.95
   },
   "dkk": {
-   "spot_buy": 97.47
+   "spot_buy": 97.45
   },
   "eur": {
-   "spot_buy": 728.86
+   "spot_buy": 728.65
   },
   "gbp": {
-   "spot_buy": 871.78
+   "spot_buy": 871.59
   },
   "hkd": {
-   "spot_buy": 84.83
+   "spot_buy": 84.84
   },
   "inr": {
-   "spot_buy": 6.7996,
+   "spot_buy": 6.8008,
    "cash_only": true
   },
   "jpy": {
-   "spot_buy": 4.1692
+   "spot_buy": 4.1689
   },
   "mop": {
-   "spot_buy": 82.35
+   "spot_buy": 82.36
   },
   "mxn": {
-   "spot_buy": 34.02
+   "spot_buy": 34.01
   },
   "myr": {
-   "spot_buy": 161.36
+   "spot_buy": 161.39
   },
   "nok": {
-   "spot_buy": 67.86
+   "spot_buy": 67.84
   },
   "nzd": {
-   "spot_buy": 364.7
+   "spot_buy": 364.43
   },
   "php": {
    "spot_buy": 10.36
   },
   "pln": {
-   "spot_buy": 162.33
+   "spot_buy": 162.31
   },
   "rub": {
    "spot_buy": 7.72
   },
   "sar": {
-   "spot_buy": 176.35
+   "spot_buy": 176.38
   },
   "sek": {
-   "spot_buy": 64.93
+   "spot_buy": 64.89
   },
   "sgd": {
-   "spot_buy": 515.26
+   "spot_buy": 515.31
   },
   "try": {
-   "spot_buy": 12.24
+   "spot_buy": 12.25
   },
   "twd": {
    "spot_buy": 19.38,
    "cash_only": true
   },
   "usd": {
-   "spot_buy": 665.32
+   "spot_buy": 665.43
   },
   "vnd": {
-   "spot_buy": 0.0245,
+   "spot_buy": 0.0246,
    "cash_only": true
   }
  }
