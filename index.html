@@ -1677,12 +1677,12 @@
         aiCfg = {
           base: (document.getElementById("ai-base").value.trim() || AI_DEFAULT.base).replace(/\/+$/, ""),
           model: document.getElementById("ai-model").value.trim() || AI_DEFAULT.model,
-          key: document.getElementById("ai-key").value.trim()
+          key: document.getElementById("ai-key").value.replace(/\s+/g, "")
         };
         aiCfg2 = {
           base: (document.getElementById("ai2-base").value.trim() || AI_BACKUP_DEFAULT.base).replace(/\/+$/, ""),
           model: document.getElementById("ai2-model").value.trim() || AI_BACKUP_DEFAULT.model,
-          key: document.getElementById("ai2-key").value.trim()
+          key: document.getElementById("ai2-key").value.replace(/\s+/g, "")
         };
         try { localStorage.setItem("xm_ai", JSON.stringify(aiCfg)); localStorage.setItem("xm_ai2", JSON.stringify(aiCfg2)); } catch (e) {}
         var h = document.getElementById("ai-hint"), old = h.textContent;
@@ -1773,6 +1773,7 @@
           "4. headcount 是文中提到的总人数（如“6个人AA”），没提到写 null。\n" +
           "5. 名字尽量沿用已有成员。已有成员：" + (aa.people.length ? aa.people.join("、") : "（暂无）");
         function aiCall(cfg) {
+          if (/[^\x00-\x7F]/.test(cfg.key)) return Promise.reject(new Error("密钥里有中文或特殊字符，可能是复制了页面上打码显示的密钥（带 … 的那串不是完整密钥），请点密钥旁边的复制按钮重新复制完整密钥后粘贴"));
           var body = { model: cfg.model, temperature: 0.1, messages: [{ role: "system", content: sys }, { role: "user", content: text }] };
           if (/bigmodel\.cn/.test(cfg.base)) body.thinking = { type: "disabled" };
           var ctl = new AbortController(), timer = setTimeout(function () { ctl.abort(); }, 30000);
