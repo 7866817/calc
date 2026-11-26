@@ -1641,7 +1641,7 @@
       });
 
       /* ===== AI 识别 ===== */
-      var AI_DEFAULT = { base: "https://open.bigmodel.cn/api/paas/v4", model: "glm-4.7-flash", key: "" };
+      var AI_DEFAULT = { base: "https://generativelanguage.googleapis.com/v1beta/openai", model: "gemini-2.5-flash", key: "" };
       function aiLoad() {
         try {
           var a = JSON.parse(localStorage.getItem("xm_ai") || "null");
