@@ -635,6 +635,10 @@
               <input id="ai-base" class="aa-input" type="text" autocapitalize="off" autocomplete="off" placeholder="接口地址">
               <input id="ai-model" class="aa-input" type="text" autocapitalize="off" autocomplete="off" placeholder="模型名" style="margin-top:8px">
               <input id="ai-key" class="aa-input" type="password" autocomplete="off" placeholder="API 密钥" style="margin-top:8px">
+              <div class="fx-label" style="margin-top:12px">备用 AI（主接口失败时自动轮换，不填则只用上面一个）</div>
+              <input id="ai2-base" class="aa-input" type="text" autocapitalize="off" autocomplete="off" placeholder="备用接口地址">
+              <input id="ai2-model" class="aa-input" type="text" autocapitalize="off" autocomplete="off" placeholder="备用模型名" style="margin-top:8px">
+              <input id="ai2-key" class="aa-input" type="password" autocomplete="off" placeholder="备用 API 密钥" style="margin-top:8px">
               <button class="aa-btn full" id="ai-save" type="button">保存</button>
               <div class="aa-preview" id="ai-hint">密钥只保存在本机，不会写进页面。识别时输入的文字会发给上面的服务商，请勿输入银行卡号、密码等敏感信息。</div>
             </div>
@@ -1654,16 +1658,33 @@
         return { base: AI_DEFAULT.base, model: AI_DEFAULT.model, key: "" };
       }
       var aiCfg = aiLoad();
+      var AI_BACKUP_DEFAULT = { base: "https://open.bigmodel.cn/api/paas/v4", model: "glm-4.7-flash", key: "" };
+      function aiLoad2() {
+        try {
+          var a = JSON.parse(localStorage.getItem("xm_ai2") || "null");
+          if (a && typeof a === "object") return { base: a.base || AI_BACKUP_DEFAULT.base, model: a.model || AI_BACKUP_DEFAULT.model, key: a.key || "" };
+        } catch (e) {}
+        return { base: AI_BACKUP_DEFAULT.base, model: AI_BACKUP_DEFAULT.model, key: "" };
+      }
+      var aiCfg2 = aiLoad2();
       document.getElementById("ai-base").value = aiCfg.base;
       document.getElementById("ai-model").value = aiCfg.model;
       document.getElementById("ai-key").value = aiCfg.key;
+      document.getElementById("ai2-base").value = aiCfg2.base;
+      document.getElementById("ai2-model").value = aiCfg2.model;
+      document.getElementById("ai2-key").value = aiCfg2.key;
       document.getElementById("ai-save").addEventListener("click", function () {
         aiCfg = {
           base: (document.getElementById("ai-base").value.trim() || AI_DEFAULT.base).replace(/\/+$/, ""),
           model: document.getElementById("ai-model").value.trim() || AI_DEFAULT.model,
           key: document.getElementById("ai-key").value.trim()
         };
-        try { localStorage.setItem("xm_ai", JSON.stringify(aiCfg)); } catch (e) {}
+        aiCfg2 = {
+          base: (document.getElementById("ai2-base").value.trim() || AI_BACKUP_DEFAULT.base).replace(/\/+$/, ""),
+          model: document.getElementById("ai2-model").value.trim() || AI_BACKUP_DEFAULT.model,
+          key: document.getElementById("ai2-key").value.trim()
+        };
+        try { localStorage.setItem("xm_ai", JSON.stringify(aiCfg)); localStorage.setItem("xm_ai2", JSON.stringify(aiCfg2)); } catch (e) {}
         var h = document.getElementById("ai-hint"), old = h.textContent;
         h.textContent = "已保存"; setTimeout(function () { h.textContent = old; }, 1500);
       });
@@ -1751,27 +1772,35 @@
           "3. parts 是分摊的人；大家一起、AA、所有人、或没说明时写 [\"*\"]；“除了X”就列出其余所有人的名字。\n" +
           "4. headcount 是文中提到的总人数（如“6个人AA”），没提到写 null。\n" +
           "5. 名字尽量沿用已有成员。已有成员：" + (aa.people.length ? aa.people.join("、") : "（暂无）");
-        var body = { model: aiCfg.model, temperature: 0.1, messages: [{ role: "system", content: sys }, { role: "user", content: text }] };
-        if (/bigmodel\.cn/.test(aiCfg.base)) body.thinking = { type: "disabled" };
+        function aiCall(cfg) {
+          var body = { model: cfg.model, temperature: 0.1, messages: [{ role: "system", content: sys }, { role: "user", content: text }] };
+          if (/bigmodel\.cn/.test(cfg.base)) body.thinking = { type: "disabled" };
+          var ctl = new AbortController(), timer = setTimeout(function () { ctl.abort(); }, 30000);
+          return fetch(cfg.base + "/chat/completions", {
+            method: "POST", signal: ctl.signal,
+            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + cfg.key },
+            body: JSON.stringify(body)
+          }).then(function (r) {
+            return r.json().then(function (j) {
+              if (!r.ok) throw new Error((j && j.error && (j.error.message || j.error.code)) || ("HTTP " + r.status));
+              return j;
+            });
+          }).then(function (j) {
+            var c = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
+            if (!c) throw new Error("模型没有返回内容");
+            return c;
+          }).finally(function () { clearTimeout(timer); });
+        }
         btn.disabled = true; btn.textContent = "识别中…"; aaMsg(""); document.getElementById("aa-ai-preview").innerHTML = "";
-        var ctl = new AbortController(), timer = setTimeout(function () { ctl.abort(); }, 30000);
-        fetch(aiCfg.base + "/chat/completions", {
-          method: "POST", signal: ctl.signal,
-          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + aiCfg.key },
-          body: JSON.stringify(body)
-        }).then(function (r) {
-          return r.json().then(function (j) {
-            if (!r.ok) throw new Error((j && j.error && (j.error.message || j.error.code)) || ("HTTP " + r.status));
-            return j;
-          });
-        }).then(function (j) {
-          var c = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
-          if (!c) throw new Error("模型没有返回内容");
+        aiCall(aiCfg).catch(function (e) {
+          if (aiCfg2.key && (aiCfg2.base !== aiCfg.base || aiCfg2.model !== aiCfg.model)) return aiCall(aiCfg2);
+          throw e;
+        }).then(function (c) {
           aiShowPreview(aiBuildPlan(aiExtractJson(c)));
         }).catch(function (e) {
           var m = e.name === "AbortError" ? "超时了，请重试" : e.message === "Failed to fetch" ? "网络请求失败（网页版可能不允许跨域，请用安卓安装包，或检查网络）" : e.message;
           aaMsg("AI 识别失败：" + m);
-        }).then(function () { clearTimeout(timer); btn.disabled = false; btn.textContent = "AI 识别"; });
+        }).then(function () { btn.disabled = false; btn.textContent = "AI 识别"; });
       }
       document.getElementById("aa-ai").addEventListener("click", aiRecognize);
 
