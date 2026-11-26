@@ -113,7 +113,7 @@
         font: inherit;
         font-size: 15px;
         font-weight: 600;
-        padding: 7px 18px;
+        padding: 7px 14px;
         border-radius: 999px;
         cursor: pointer;
       }
@@ -456,6 +456,28 @@
       .board-sub + .board-row { border-top: 0; }
       .fav-btn { flex: none; width: 30px; height: 30px; margin-left: -6px; border: 0; background: none; color: var(--panel-dim); font-size: 18px; cursor: pointer; touch-action: manipulation; }
       .fav-btn.on { color: #f0b429; }
+      #view-aa { background: var(--app-bg); }
+      .aa-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+      .aa-head .fx-label { margin: 0; }
+      .aa-input { width: 100%; min-width: 0; font: inherit; font-size: 16px; color: var(--panel-text); background: var(--input-bg); border: 1px solid var(--panel-line); border-radius: 10px; padding: 11px 12px; outline: none; }
+      .aa-add { display: flex; gap: 8px; margin-top: 10px; }
+      .aa-btn { flex: none; border: 0; background: var(--accent); color: #fff; font: inherit; font-size: 15px; font-weight: 600; border-radius: 10px; padding: 0 16px; cursor: pointer; touch-action: manipulation; }
+      .aa-btn.ghost { background: var(--accent-soft); color: var(--accent); }
+      .aa-btn.full { width: 100%; padding: 12px; margin-top: 12px; }
+      textarea.aa-input { resize: none; line-height: 1.5; }
+      .aa-preview { font-size: 13px; color: var(--panel-dim); margin-top: 8px; min-height: 18px; }
+      .ai-plan { margin-top: 12px; border: 1px solid var(--accent); border-radius: 12px; padding: 12px; }
+      .ai-plan .aa-row { padding: 8px 0; }
+      .ai-plan-btns { display: flex; gap: 8px; margin-top: 10px; }
+      .aa-msg { color: #e5484d; font-size: 13px; min-height: 18px; margin-top: 8px; }
+      .aa-row { display: flex; align-items: center; gap: 8px; padding: 10px 0; border-top: 1px solid var(--panel-line); }
+      .aa-row:first-child { border-top: 0; }
+      .aa-row .main { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+      .aa-row .sub { font-size: 12.5px; color: var(--panel-dim); }
+      .aa-row .amt { font-variant-numeric: tabular-nums; font-weight: 600; text-align: right; }
+      .aa-pos { color: #2e9e5b; } .aa-neg { color: #e5484d; }
+      .aa-del { border: 0; background: none; color: var(--panel-dim); font-size: 18px; padding: 4px 8px; cursor: pointer; }
+      .aa-sub { font-size: 13px; color: var(--panel-dim); margin: 14px 0 2px; }
       .pair-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
       .pair-head .fx-label { margin: 0; }
       .chip.on { color: var(--accent); border-color: var(--accent); }
@@ -471,6 +493,7 @@
         <div class="tabs" role="tablist" aria-label="功能切换">
           <button class="tab" id="tab-calc" role="tab" aria-selected="true">计算器</button>
           <button class="tab" id="tab-fx" role="tab" aria-selected="false">汇率换算</button>
+          <button class="tab" id="tab-aa" role="tab" aria-selected="false">AA 分账</button>
         </div>
         <div class="fx-dot"><span class="dot" id="rate-dot"></span><span id="rate-dot-text">牌价快照</span></div>
       </div>
@@ -574,6 +597,51 @@
           </div>
         </div>
       </section>
+
+      <!-- ============ AA ============ -->
+      <section class="view" id="view-aa" aria-label="AA 分账" hidden>
+        <div class="fx-scroll">
+          <div class="fx-inner">
+            <div class="fx-card">
+              <div class="aa-head"><span class="fx-label">有哪些人 <span id="aa-pcount"></span></span><button class="refresh-btn" id="aa-reset" type="button">清空全部</button></div>
+              <div class="chips" id="aa-people"></div>
+              <div class="aa-add"><input id="aa-name" class="aa-input" type="text" maxlength="8" placeholder="名字（留空自动取名）" enterkeyhint="done"><button class="aa-btn" id="aa-addp" type="button">添加</button></div>
+            </div>
+            <div class="fx-card">
+              <div class="fx-label">项目和金额（可以一次打多笔）</div>
+              <textarea id="aa-input" class="aa-input" rows="3" placeholder="例如：&#10;晚餐 130&#10;打车 350&#10;也可以只写数字：130 350 80"></textarea>
+              <div class="aa-preview" id="aa-preview"></div>
+              <button class="aa-btn ghost" id="aa-fromcalc" type="button" style="margin-top:8px;padding:9px 14px">把计算器结果加进来</button>
+              <div class="fx-label" style="margin-top:12px">谁付的钱</div>
+              <div class="chips" id="aa-payer"></div>
+              <div class="aa-head" style="margin-top:12px"><span class="fx-label">谁参与分摊</span><button class="refresh-btn" id="aa-allparts" type="button">全选</button></div>
+              <div class="chips" id="aa-parts"></div>
+              <div class="aa-msg" id="aa-msg"></div>
+              <div class="aa-add" style="margin-top:12px">
+                <button class="aa-btn ghost" id="aa-ai" type="button" style="flex:1;padding:12px">AI 识别</button>
+                <button class="aa-btn" id="aa-additem" type="button" style="flex:1;padding:12px">全部记下</button>
+              </div>
+              <div id="aa-ai-preview"></div>
+            </div>
+            <div class="fx-card"><div class="fx-label" id="aa-items-title">花费记录</div><div id="aa-items"></div></div>
+            <div class="fx-card">
+              <div class="fx-label" id="aa-result-title">结算</div>
+              <div id="aa-result"></div>
+              <div id="aa-settle"></div>
+              <button class="aa-btn ghost full" id="aa-copy" type="button">复制结算结果</button>
+            </div>
+            <div class="fx-card" id="ai-card">
+              <div class="fx-label">AI 设置（用于「AI 识别」）</div>
+              <input id="ai-base" class="aa-input" type="text" autocapitalize="off" autocomplete="off" placeholder="接口地址">
+              <input id="ai-model" class="aa-input" type="text" autocapitalize="off" autocomplete="off" placeholder="模型名" style="margin-top:8px">
+              <input id="ai-key" class="aa-input" type="password" autocomplete="off" placeholder="API 密钥" style="margin-top:8px">
+              <button class="aa-btn full" id="ai-save" type="button">保存</button>
+              <div class="aa-preview" id="ai-hint">密钥只保存在本机，不会写进页面。识别时输入的文字会发给上面的服务商，请勿输入银行卡号、密码等敏感信息。</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
     </div>
 
     <script>
@@ -897,15 +965,24 @@
       var viewFx = document.getElementById("view-fx");
       var tabCalc = document.getElementById("tab-calc");
       var tabFx = document.getElementById("tab-fx");
-      function showTab(fx) {
-        viewCalc.hidden = fx;
-        viewFx.hidden = !fx;
-        tabCalc.setAttribute("aria-selected", String(!fx));
-        tabFx.setAttribute("aria-selected", String(fx));
-        if (!fx) fitHistory();
+      var tabAa = document.getElementById("tab-aa");
+      var viewAa = document.getElementById("view-aa");
+      var fxDotEl = document.querySelector(".fx-dot");
+      function showTab(x) {
+        var name = x === true ? "fx" : x === false ? "calc" : x;
+        viewCalc.hidden = name !== "calc";
+        viewFx.hidden = name !== "fx";
+        viewAa.hidden = name !== "aa";
+        tabCalc.setAttribute("aria-selected", String(name === "calc"));
+        tabFx.setAttribute("aria-selected", String(name === "fx"));
+        tabAa.setAttribute("aria-selected", String(name === "aa"));
+        fxDotEl.style.display = name === "fx" ? "" : "none";
+        if (name === "calc") fitHistory();
+        if (name === "aa") aaRender();
       }
-      tabCalc.addEventListener("click", function () { showTab(false); });
-      tabFx.addEventListener("click", function () { showTab(true); });
+      tabCalc.addEventListener("click", function () { showTab("calc"); });
+      tabFx.addEventListener("click", function () { showTab("fx"); });
+      tabAa.addEventListener("click", function () { showTab("aa"); });
       document.getElementById("fx-jump").addEventListener("click", function () {
         bringCalcValue();
         showTab(true);
@@ -1229,7 +1306,7 @@
       }
       /* 第 2 层：中行牌价镜像 JSON（GitHub Pages，每 30 分钟从中行官网抓一次，跨域开放）；updated 超过约 2 天视为失效 */
       function fetchBocMirror() {
-        return fetchWithTimeout("https://7866817.github.io/calc/rate.json?t=" + Date.now(), 8000)
+        return fetchWithTimeout("https://ylcdwyyx.github.io/boc-fx/rate.json", 8000)
           .then(function (r) { return r.json(); })
           .then(function (j) {
             if (!j || !j.currencies || !j.updated) throw new Error("mirror shape");
@@ -1241,7 +1318,7 @@
               var code = k.toUpperCase();
               var entry = j.currencies[k] || {};
               var spot = parseFloat(entry.spot_buy);
-              if (CUR_NAME[code] && isFinite(spot) && spot > 0) { got[code] = { v: spot, cash: !!entry.cash_only }; n++; }
+              if (CUR_NAME[code] && isFinite(spot) && spot > 0) { got[code] = { v: spot, cash: false }; n++; }
             });
             if (!got.USD || n < 5) throw new Error("mirror too few");
             applyBocRates(got);
@@ -1352,6 +1429,338 @@
         convertFx();
       }
       bringBtn.addEventListener("click", function () { bringCalcValue(); buzz(); });
+
+      /* ================= AA 分账 ================= */
+      var aa = { people: [], items: [] };
+      var aaPayer = null, aaParts = {}, aaResetArmed = false;
+      try {
+        var _a = JSON.parse(localStorage.getItem("xm_aa") || "null");
+        if (_a && Array.isArray(_a.people) && Array.isArray(_a.items)) {
+          aa.people = _a.people.filter(function (n) { return typeof n === "string" && n; });
+          aa.items = _a.items.filter(function (it) {
+            return it && typeof it.cents === "number" && it.cents > 0 && aa.people.indexOf(it.payer) >= 0 && Array.isArray(it.parts);
+          }).map(function (it) {
+            it.parts = it.parts.filter(function (n) { return aa.people.indexOf(n) >= 0; }); return it;
+          }).filter(function (it) { return it.parts.length; });
+        }
+      } catch (e) {}
+      function aaSave() { try { localStorage.setItem("xm_aa", JSON.stringify(aa)); } catch (e) {} }
+      function aaMoney(c) { return (c / 100).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+      function aaMsg(t) { document.getElementById("aa-msg").textContent = t || ""; }
+      function mk(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+
+      /* AA compute start */
+      function aaCompute(people, items) {
+        var paid = {}, owed = {}, total = 0, everyone = items.length > 0;
+        people.forEach(function (p) { paid[p] = 0; owed[p] = 0; });
+        items.forEach(function (it) {
+          total += it.cents; paid[it.payer] += it.cents;
+          var n = it.parts.length, base = Math.floor(it.cents / n), rem = it.cents - base * n;
+          it.parts.forEach(function (p, i) { owed[p] += base + (i < rem ? 1 : 0); });
+          if (n !== people.length) everyone = false;
+        });
+        var bal = {}, cr = [], db = [];
+        people.forEach(function (p) {
+          bal[p] = paid[p] - owed[p];
+          if (bal[p] > 0) cr.push([p, bal[p]]); else if (bal[p] < 0) db.push([p, -bal[p]]);
+        });
+        function desc(a, b) { return b[1] - a[1]; }
+        cr.sort(desc); db.sort(desc);
+        var pays = [], i = 0, j = 0;
+        while (i < db.length && j < cr.length) {
+          var m = Math.min(db[i][1], cr[j][1]);
+          pays.push({ from: db[i][0], to: cr[j][0], c: m });
+          db[i][1] -= m; cr[j][1] -= m;
+          if (!db[i][1]) i++;
+          if (!cr[j][1]) j++;
+        }
+        return { paid: paid, owed: owed, bal: bal, pays: pays, total: total, everyone: everyone };
+      }
+      /* AA compute end */
+
+      function aaAddPerson() {
+        var inp = document.getElementById("aa-name");
+        var name = inp.value.trim();
+        if (!name) { var k = 1; while (aa.people.indexOf("成员" + k) >= 0) k++; name = "成员" + k; }
+        if (aa.people.indexOf(name) >= 0) { aaMsg("已经有「" + name + "」了"); return; }
+        aa.people.push(name); aaParts[name] = true;
+        if (!aaPayer) aaPayer = name;
+        inp.value = ""; aaMsg(""); aaSave(); aaRender();
+      }
+      function aaRemovePerson(name) {
+        if (aa.items.some(function (it) { return it.payer === name; })) { aaMsg(name + " 付过款，请先删除他付款的记录"); return; }
+        aa.people.splice(aa.people.indexOf(name), 1);
+        aa.items.forEach(function (it) { it.parts = it.parts.filter(function (n) { return n !== name; }); });
+        aa.items = aa.items.filter(function (it) { return it.parts.length; });
+        delete aaParts[name]; if (aaPayer === name) aaPayer = null;
+        aaMsg(""); aaSave(); aaRender();
+      }
+      /* AA parse start */
+      function aaParseBatch(text) {
+        var out = [];
+        String(text).split(/[\n;；]+/).forEach(function (line) {
+          var re = /([^\d]*)(\d+(?:\.\d+)?)/g, m, found = [], last = 0;
+          function clean(t) {
+            return t.replace(/^[\s,，、+＋:：]+/, "").replace(/^(?:元|块)(?=[\s,，、+＋:：]|$)/, "")
+              .replace(/^[\s,，、+＋:：¥￥]+/, "").replace(/[\s,，、+＋:：¥￥]+$/, "");
+          }
+          while ((m = re.exec(line)) !== null) { found.push({ name: clean(m[1]), v: parseFloat(m[2]) }); last = re.lastIndex; }
+          if (found.length === 1 && !found[0].name) found[0].name = clean(line.slice(last));
+          found.forEach(function (f) { if (isFinite(f.v) && f.v > 0) out.push({ name: f.name, cents: Math.round(f.v * 100) }); });
+        });
+        return out;
+      }
+      /* AA parse end */
+      function aaPreview() {
+        var inp = document.getElementById("aa-input"), el = document.getElementById("aa-preview"), list = aaParseBatch(inp.value);
+        if (!list.length) { el.textContent = inp.value.trim() ? "没有识别到金额" : ""; return; }
+        var total = list.reduce(function (s, x) { return s + x.cents; }, 0);
+        var k = aa.people.filter(function (n) { return aaParts[n]; }).length;
+        var t = "识别到 " + list.length + " 笔，合计 " + aaMoney(total);
+        if (k) t += " · " + k + " 人分摊，每人约 " + aaMoney(Math.round(total / k));
+        el.textContent = t;
+      }
+      function aaAddItem() {
+        var list = aaParseBatch(document.getElementById("aa-input").value);
+        var parts = aa.people.filter(function (n) { return aaParts[n]; });
+        if (!aa.people.length) { aaMsg("先添加参与的人"); return; }
+        if (!list.length) { aaMsg("请填写金额，比如：晚餐 130"); return; }
+        if (!aaPayer) { aaMsg("请选择谁付的钱"); return; }
+        if (!parts.length) { aaMsg("至少选一个参与分摊的人"); return; }
+        list.forEach(function (x, i) {
+          aa.items.push({ id: Date.now() + i, name: x.name || "花费" + (aa.items.length + 1), cents: x.cents, payer: aaPayer, parts: parts.slice() });
+        });
+        document.getElementById("aa-input").value = "";
+        aaMsg(""); aaSave(); aaRender(); buzz();
+      }
+      function aaSummary() {
+        var r = aaCompute(aa.people, aa.items), out = ["AA 分账", "合计 " + aaMoney(r.total) + "，共 " + aa.people.length + " 人"];
+        if (r.everyone && aa.people.length) out.push("人均 " + aaMoney(Math.round(r.total / aa.people.length)));
+        out.push("");
+        aa.items.forEach(function (it) { out.push(it.name + " " + aaMoney(it.cents) + "（" + it.payer + " 付，" + it.parts.length + " 人分摊）"); });
+        out.push("");
+        if (!r.pays.length) out.push("已结清，无需转账");
+        r.pays.forEach(function (x) { out.push(x.from + " 付给 " + x.to + " " + aaMoney(x.c)); });
+        return out.join("\n");
+      }
+      function aaCopy() {
+        var btn = document.getElementById("aa-copy"), txt = aaSummary();
+        function done(ok) { btn.textContent = ok ? "已复制" : "复制失败，请手动选择"; setTimeout(function () { btn.textContent = "复制结算结果"; }, 1600); }
+        function fallback() {
+          var ta = document.createElement("textarea"); ta.value = txt; ta.style.position = "fixed"; ta.style.opacity = "0";
+          document.body.appendChild(ta); ta.select();
+          var ok = false; try { ok = document.execCommand("copy"); } catch (e) {}
+          document.body.removeChild(ta); done(ok);
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(function () { done(true); }, fallback);
+        else fallback();
+      }
+      function aaRender() {
+        if (aaPayer && aa.people.indexOf(aaPayer) < 0) aaPayer = null;
+        if (!aaPayer && aa.people.length) aaPayer = aa.people[0];
+        aa.people.forEach(function (n) { if (aaParts[n] === undefined) aaParts[n] = true; });
+        document.getElementById("aa-pcount").textContent = aa.people.length ? "· " + aa.people.length + " 人" : "";
+
+        var pe = document.getElementById("aa-people"), py = document.getElementById("aa-payer"), pt = document.getElementById("aa-parts");
+        pe.innerHTML = ""; py.innerHTML = ""; pt.innerHTML = "";
+        if (!aa.people.length) { pe.appendChild(mk("span", "fx-label", "还没有人，在下面输入名字添加")); }
+        aa.people.forEach(function (n) {
+          var b = mk("button", "chip", n + "  ✕"); b.type = "button";
+          b.addEventListener("click", function () { aaRemovePerson(n); }); pe.appendChild(b);
+          var b2 = mk("button", "chip" + (aaPayer === n ? " on" : ""), n); b2.type = "button";
+          b2.addEventListener("click", function () { aaPayer = n; aaRender(); }); py.appendChild(b2);
+          var b3 = mk("button", "chip" + (aaParts[n] ? " on" : ""), (aaParts[n] ? "✓ " : "") + n); b3.type = "button";
+          b3.addEventListener("click", function () { aaParts[n] = !aaParts[n]; aaRender(); }); pt.appendChild(b3);
+        });
+        document.getElementById("aa-allparts").textContent = aa.people.every(function (n) { return aaParts[n]; }) ? "全不选" : "全选";
+        aaPreview();
+
+        var r = aaCompute(aa.people, aa.items);
+        document.getElementById("aa-items-title").textContent = "花费记录 · " + aa.items.length + " 笔，合计 " + aaMoney(r.total);
+        var il = document.getElementById("aa-items"); il.innerHTML = "";
+        if (!aa.items.length) il.appendChild(mk("div", "fx-label", "还没有记录"));
+        aa.items.forEach(function (it, idx) {
+          var row = mk("div", "aa-row"), main = mk("div", "main");
+          main.appendChild(mk("div", "", it.name));
+          main.appendChild(mk("div", "sub", it.payer + " 付 · " + (it.parts.length === aa.people.length ? "全员分摊" : it.parts.join("、") + " 分摊")));
+          row.appendChild(main); row.appendChild(mk("div", "amt", aaMoney(it.cents)));
+          var d = mk("button", "aa-del", "✕"); d.type = "button"; d.setAttribute("aria-label", "删除 " + it.name);
+          d.addEventListener("click", function () { aa.items.splice(idx, 1); aaSave(); aaRender(); }); row.appendChild(d); il.appendChild(row);
+        });
+
+        var rt = document.getElementById("aa-result"), st = document.getElementById("aa-settle");
+        rt.innerHTML = ""; st.innerHTML = "";
+        var title = "结算";
+        if (r.everyone && aa.people.length) title += " · 人均 " + aaMoney(Math.round(r.total / aa.people.length));
+        document.getElementById("aa-result-title").textContent = title;
+        if (!aa.items.length) { rt.appendChild(mk("div", "fx-label", "记几笔花费后，这里会显示每个人该付多少")); }
+        else {
+          aa.people.forEach(function (n) {
+            var row = mk("div", "aa-row"), main = mk("div", "main");
+            main.appendChild(mk("div", "", n));
+            main.appendChild(mk("div", "sub", "应摊 " + aaMoney(r.owed[n]) + " · 已付 " + aaMoney(r.paid[n])));
+            var b = r.bal[n], cls = b > 0 ? "aa-pos" : b < 0 ? "aa-neg" : "";
+            row.appendChild(main); row.appendChild(mk("div", "amt " + cls, b > 0 ? "应收 " + aaMoney(b) : b < 0 ? "应付 " + aaMoney(-b) : "已结清"));
+            rt.appendChild(row);
+          });
+          st.appendChild(mk("div", "aa-sub", r.pays.length ? "转账建议（笔数最少）" : "已结清，无需转账"));
+          r.pays.forEach(function (x) {
+            var row = mk("div", "aa-row"); row.appendChild(mk("div", "main", x.from + " → " + x.to)); row.appendChild(mk("div", "amt", aaMoney(x.c))); st.appendChild(row);
+          });
+        }
+      }
+      document.getElementById("aa-addp").addEventListener("click", aaAddPerson);
+      document.getElementById("aa-name").addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); aaAddPerson(); } });
+      document.getElementById("aa-additem").addEventListener("click", aaAddItem);
+      document.getElementById("aa-copy").addEventListener("click", aaCopy);
+      document.getElementById("aa-fromcalc").addEventListener("click", function () {
+        var v = currentCalcValue();
+        if (typeof v !== "number" || !isFinite(v) || v <= 0) { aaMsg("计算器里还没有可用的结果"); return; }
+        var inp = document.getElementById("aa-input");
+        inp.value = inp.value.replace(/\s+$/, "") + (inp.value.trim() ? "\n" : "") + plainNum(v);
+        aaMsg(""); aaPreview();
+      });
+      document.getElementById("aa-input").addEventListener("input", aaPreview);
+      document.getElementById("aa-allparts").addEventListener("click", function () {
+        var all = aa.people.every(function (n) { return aaParts[n]; });
+        aa.people.forEach(function (n) { aaParts[n] = !all; }); aaRender();
+      });
+      document.getElementById("aa-reset").addEventListener("click", function () {
+        var b = this;
+        if (!aaResetArmed) { aaResetArmed = true; b.textContent = "再点一次确认"; setTimeout(function () { aaResetArmed = false; b.textContent = "清空全部"; }, 3000); return; }
+        aaResetArmed = false; b.textContent = "清空全部"; aa = { people: [], items: [] }; aaParts = {}; aaPayer = null; aaMsg(""); aaSave(); aaRender();
+      });
+
+      /* ===== AI 识别 ===== */
+      var AI_DEFAULT = { base: "https://open.bigmodel.cn/api/paas/v4", model: "glm-4.7-flash", key: "" };
+      function aiLoad() {
+        try {
+          var a = JSON.parse(localStorage.getItem("xm_ai") || "null");
+          if (a && typeof a === "object") return { base: a.base || AI_DEFAULT.base, model: a.model || AI_DEFAULT.model, key: a.key || "" };
+        } catch (e) {}
+        return { base: AI_DEFAULT.base, model: AI_DEFAULT.model, key: "" };
+      }
+      var aiCfg = aiLoad();
+      document.getElementById("ai-base").value = aiCfg.base;
+      document.getElementById("ai-model").value = aiCfg.model;
+      document.getElementById("ai-key").value = aiCfg.key;
+      document.getElementById("ai-save").addEventListener("click", function () {
+        aiCfg = {
+          base: (document.getElementById("ai-base").value.trim() || AI_DEFAULT.base).replace(/\/+$/, ""),
+          model: document.getElementById("ai-model").value.trim() || AI_DEFAULT.model,
+          key: document.getElementById("ai-key").value.trim()
+        };
+        try { localStorage.setItem("xm_ai", JSON.stringify(aiCfg)); } catch (e) {}
+        var h = document.getElementById("ai-hint"), old = h.textContent;
+        h.textContent = "已保存"; setTimeout(function () { h.textContent = old; }, 1500);
+      });
+
+      /* AI start */
+      function aiExtractJson(c) {
+        c = String(c).replace(/```(?:json)?/gi, "");
+        var i = c.indexOf("{"), j = c.lastIndexOf("}");
+        if (i < 0 || j <= i) throw new Error("模型返回的不是 JSON，请再试一次");
+        return JSON.parse(c.slice(i, j + 1));
+      }
+      function aiBuildPlan(data) {
+        if (!data || !Array.isArray(data.items) || !data.items.length) throw new Error("没有识别出花费，请换种说法");
+        var people = aa.people.slice(), newNames = [];
+        function ensure(n) {
+          n = String(n == null ? "" : n).trim().slice(0, 8);
+          if (!n || n === "*" || n === "null") return null;
+          if (people.indexOf(n) < 0) { people.push(n); newNames.push(n); }
+          return n;
+        }
+        var plan = [];
+        data.items.forEach(function (it) {
+          if (!it) return;
+          var amt = NaN;
+          if (typeof it.expr === "string" && it.expr.trim()) { try { amt = evaluate(it.expr.replace(/[×xX]/g, "*").replace(/÷/g, "/")); } catch (e) {} }
+          if (!isFinite(amt) && it.amount != null) amt = parseFloat(it.amount);
+          if (!isFinite(amt) || amt <= 0) return;
+          var payer = ensure(it.payer), all = false, explicit = [];
+          (Array.isArray(it.parts) && it.parts.length ? it.parts : ["*"]).forEach(function (n) {
+            if (n === "*") all = true; else { var m = ensure(n); if (m) explicit.push(m); }
+          });
+          plan.push({ name: String(it.name || "").trim().slice(0, 12), cents: Math.round(amt * 100), payer: payer, all: all || !explicit.length, parts: explicit });
+        });
+        if (!plan.length) throw new Error("没有识别出有效的金额，请换种说法");
+        var hc = parseInt(data.headcount, 10), k = 1;
+        if (isFinite(hc) && hc > people.length && hc <= 30) {
+          while (people.length < hc) { var nm = "成员" + k++; if (people.indexOf(nm) < 0) { people.push(nm); newNames.push(nm); } }
+        }
+        if (!people.length) throw new Error("没有识别出参与的人，请先添加成员，或写明人数、名字");
+        return { people: people, newNames: newNames, items: plan };
+      }
+      /* AI end */
+
+      function aiShowPreview(plan) {
+        var box = document.getElementById("aa-ai-preview");
+        box.innerHTML = "";
+        var wrap = mk("div", "ai-plan");
+        wrap.appendChild(mk("div", "fx-label", "AI 识别结果，确认后才会记下"));
+        if (plan.newNames.length) wrap.appendChild(mk("div", "aa-sub", "将新增成员：" + plan.newNames.join("、")));
+        plan.items.forEach(function (it) {
+          var row = mk("div", "aa-row"), main = mk("div", "main");
+          main.appendChild(mk("div", "", it.name || "（未命名）"));
+          main.appendChild(mk("div", "sub", (it.payer || aaPayer || plan.people[0]) + " 付 · " + (it.all ? "全员 " + plan.people.length + " 人分摊" : it.parts.join("、") + " 分摊")));
+          row.appendChild(main); row.appendChild(mk("div", "amt", aaMoney(it.cents))); wrap.appendChild(row);
+        });
+        var btns = mk("div", "ai-plan-btns");
+        var no = mk("button", "aa-btn ghost", "取消"); no.type = "button"; no.style.flex = "1"; no.style.padding = "11px";
+        var ok = mk("button", "aa-btn", "确认记下"); ok.type = "button"; ok.style.flex = "1"; ok.style.padding = "11px";
+        no.addEventListener("click", function () { box.innerHTML = ""; });
+        ok.addEventListener("click", function () {
+          plan.newNames.forEach(function (n) { if (aa.people.indexOf(n) < 0) { aa.people.push(n); aaParts[n] = true; } });
+          if (!aaPayer) aaPayer = aa.people[0];
+          plan.items.forEach(function (it, i) {
+            var parts = it.all ? aa.people.slice() : it.parts.filter(function (n) { return aa.people.indexOf(n) >= 0; });
+            if (!parts.length) parts = aa.people.slice();
+            aa.items.push({ id: Date.now() + i, name: it.name || "花费" + (aa.items.length + 1), cents: it.cents, payer: it.payer || aaPayer, parts: parts });
+          });
+          document.getElementById("aa-input").value = ""; box.innerHTML = "";
+          aaMsg(""); aaSave(); aaRender(); buzz();
+        });
+        btns.appendChild(no); btns.appendChild(ok); wrap.appendChild(btns); box.appendChild(wrap);
+      }
+      function aiRecognize() {
+        var text = document.getElementById("aa-input").value.trim(), btn = document.getElementById("aa-ai");
+        if (!text) { aaMsg("先在上面的框里写下花费的描述"); return; }
+        if (!aiCfg.key) {
+          aaMsg("先在页面最下面的「AI 设置」里填入 API 密钥");
+          document.getElementById("ai-card").scrollIntoView({ behavior: "smooth", block: "center" });
+          return;
+        }
+        var sys = "你是 AA 分账记账助手。把用户描述的花费整理成 JSON，只输出 JSON，不要任何解释，不要 markdown。\n" +
+          "格式：{\"headcount\": 总人数或null, \"items\": [{\"name\": \"项目名\", \"expr\": \"金额算式\", \"payer\": \"付款人或null\", \"parts\": [\"参与分摊的人\"]}]}\n" +
+          "规则：\n1. expr 只写数字和 + - * / ( )，保留用户写的算式，不要自己心算。\n" +
+          "2. payer 是出钱的人；没说是谁就写 null。\n" +
+          "3. parts 是分摊的人；大家一起、AA、所有人、或没说明时写 [\"*\"]；“除了X”就列出其余所有人的名字。\n" +
+          "4. headcount 是文中提到的总人数（如“6个人AA”），没提到写 null。\n" +
+          "5. 名字尽量沿用已有成员。已有成员：" + (aa.people.length ? aa.people.join("、") : "（暂无）");
+        var body = { model: aiCfg.model, temperature: 0.1, messages: [{ role: "system", content: sys }, { role: "user", content: text }] };
+        if (/bigmodel\.cn/.test(aiCfg.base)) body.thinking = { type: "disabled" };
+        btn.disabled = true; btn.textContent = "识别中…"; aaMsg(""); document.getElementById("aa-ai-preview").innerHTML = "";
+        var ctl = new AbortController(), timer = setTimeout(function () { ctl.abort(); }, 30000);
+        fetch(aiCfg.base + "/chat/completions", {
+          method: "POST", signal: ctl.signal,
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + aiCfg.key },
+          body: JSON.stringify(body)
+        }).then(function (r) {
+          return r.json().then(function (j) {
+            if (!r.ok) throw new Error((j && j.error && (j.error.message || j.error.code)) || ("HTTP " + r.status));
+            return j;
+          });
+        }).then(function (j) {
+          var c = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
+          if (!c) throw new Error("模型没有返回内容");
+          aiShowPreview(aiBuildPlan(aiExtractJson(c)));
+        }).catch(function (e) {
+          var m = e.name === "AbortError" ? "超时了，请重试" : e.message === "Failed to fetch" ? "网络请求失败（网页版可能不允许跨域，请用安卓安装包，或检查网络）" : e.message;
+          aaMsg("AI 识别失败：" + m);
+        }).then(function () { clearTimeout(timer); btn.disabled = false; btn.textContent = "AI 识别"; });
+      }
+      document.getElementById("aa-ai").addEventListener("click", aiRecognize);
 
       /* init */
       loadHistory();
