@@ -1792,15 +1792,22 @@
             return c;
           }).finally(function () { clearTimeout(timer); });
         }
+        function aiErrText(e) {
+          if (!e) return "未知错误";
+          if (e.name === "AbortError") return "超时了";
+          if (e.message === "Failed to fetch") return "网络请求失败（网页版可能不允许跨域，请用安卓安装包，或检查网络）";
+          return e.message;
+        }
         btn.disabled = true; btn.textContent = "识别中…"; aaMsg(""); document.getElementById("aa-ai-preview").innerHTML = "";
+        var aiErrs = [];
         aiCall(aiCfg).catch(function (e) {
-          if (aiCfg2.key && (aiCfg2.base !== aiCfg.base || aiCfg2.model !== aiCfg.model)) return aiCall(aiCfg2);
+          aiErrs.push("主接口（" + aiCfg.model + "）失败：" + aiErrText(e));
+          if (aiCfg2.key && (aiCfg2.base !== aiCfg.base || aiCfg2.model !== aiCfg.model)) return aiCall(aiCfg2).catch(function (e2) { aiErrs.push("备用接口（" + aiCfg2.model + "）失败：" + aiErrText(e2)); throw e2; });
           throw e;
         }).then(function (c) {
           aiShowPreview(aiBuildPlan(aiExtractJson(c)));
         }).catch(function (e) {
-          var m = e.name === "AbortError" ? "超时了，请重试" : e.message === "Failed to fetch" ? "网络请求失败（网页版可能不允许跨域，请用安卓安装包，或检查网络）" : e.message;
-          aaMsg("AI 识别失败：" + m);
+          aaMsg("AI 识别失败：" + (aiErrs.length ? aiErrs.join("；") : aiErrText(e)));
         }).then(function () { btn.disabled = false; btn.textContent = "AI 识别"; });
       }
       document.getElementById("aa-ai").addEventListener("click", aiRecognize);
