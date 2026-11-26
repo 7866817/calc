@@ -1499,14 +1499,23 @@
       function aaParseBatch(text) {
         var out = [];
         String(text).split(/[\n;；]+/).forEach(function (line) {
-          var re = /([^\d]*)(\d+(?:\.\d+)?)/g, m, found = [], last = 0;
+          // “/6” 这类除数不是一笔钱，先去掉，避免 (130+350)/6 被多算 6 元
+          line = line.replace(/\/\s*\d+(?:\.\d+)?/g, "");
+          var re = /\d+(?:\.\d+)?/g, m, nums = [];
+          while ((m = re.exec(line)) !== null) { nums.push({ v: parseFloat(m[0]), start: m.index, end: m.index + m[0].length, name: "" }); }
           function clean(t) {
-            return t.replace(/^[\s,，、+＋:：]+/, "").replace(/^(?:元|块)(?=[\s,，、+＋:：]|$)/, "")
-              .replace(/^[\s,，、+＋:：¥￥]+/, "").replace(/[\s,，、+＋:：¥￥]+$/, "");
+            return t.replace(/^[\s,，、+＋:：()（）\/]+/, "").replace(/^(?:元|块)(?=[\s,，、+＋:：()（）\/]|$)/, "")
+              .replace(/^[\s,，、+＋:：¥￥()（）\/]+/, "").replace(/[\s,，、+＋:：¥￥()（）\/]+$/, "");
           }
-          while ((m = re.exec(line)) !== null) { found.push({ name: clean(m[1]), v: parseFloat(m[2]) }); last = re.lastIndex; }
-          if (found.length === 1 && !found[0].name) found[0].name = clean(line.slice(last));
-          found.forEach(function (f) { if (isFinite(f.v) && f.v > 0) out.push({ name: f.name, cents: Math.round(f.v * 100) }); });
+          nums.forEach(function (n, i) {
+            if (i === 0) n.name = clean(line.slice(0, n.start));
+            if (i > 0) {
+              var seg = clean(line.slice(nums[i - 1].end, n.start));
+              if (seg) { if (!nums[i - 1].name) nums[i - 1].name = seg; else if (!n.name) n.name = seg; }
+            }
+            if (i === nums.length - 1) { var tail = clean(line.slice(n.end)); if (tail && !n.name) n.name = tail; }
+          });
+          nums.forEach(function (n) { if (isFinite(n.v) && n.v > 0) out.push({ name: n.name, cents: Math.round(n.v * 100) }); });
         });
         return out;
       }
