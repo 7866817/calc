@@ -603,7 +603,8 @@
         <div class="fx-scroll">
           <div class="fx-inner">
             <div class="fx-card">
-              <div class="aa-head"><span class="fx-label">有哪些人 <span id="aa-pcount"></span></span><button class="refresh-btn" id="aa-reset" type="button">清空全部</button></div>
+              <input id="aa-title" class="aa-input" type="text" maxlength="20" placeholder="标题，比如：周六火锅（不填自动用日期）">
+              <div class="aa-head" style="margin-top:12px"><span class="fx-label">有哪些人 <span id="aa-pcount"></span></span><button class="refresh-btn" id="aa-reset" type="button">清空全部</button></div>
               <div class="chips" id="aa-people"></div>
               <div class="aa-add"><input id="aa-name" class="aa-input" type="text" maxlength="8" placeholder="名字（留空自动取名）" enterkeyhint="done"><button class="aa-btn" id="aa-addp" type="button">添加</button></div>
             </div>
@@ -629,7 +630,9 @@
               <div id="aa-result"></div>
               <div id="aa-settle"></div>
               <button class="aa-btn ghost full" id="aa-copy" type="button">复制结算结果</button>
+              <button class="aa-btn full" id="aa-savehist" type="button" style="margin-top:8px">保存这笔记录</button>
             </div>
+            <div class="fx-card"><div class="fx-label" id="aa-hist-title">历史记录</div><div id="aa-hist"></div></div>
             <div class="fx-card" id="ai-card">
               <button type="button" id="ai-toggle" style="width:100%;background:none;border:0;padding:0;text-align:left;cursor:pointer;display:flex;justify-content:space-between;align-items:center"><span class="fx-label" style="margin:0">AI 设置（用于「AI 识别」）</span><span id="ai-toggle-state" style="font-size:13px;color:var(--muted,#888)"></span></button>
               <div id="ai-body" style="display:none">
@@ -1437,11 +1440,12 @@
       bringBtn.addEventListener("click", function () { bringCalcValue(); buzz(); });
 
       /* ================= AA 分账 ================= */
-      var aa = { people: [], items: [] };
+      var aa = { title: "", people: [], items: [] };
       var aaPayer = null, aaParts = {}, aaResetArmed = false;
       try {
         var _a = JSON.parse(localStorage.getItem("xm_aa") || "null");
         if (_a && Array.isArray(_a.people) && Array.isArray(_a.items)) {
+          if (typeof _a.title === "string") aa.title = _a.title.slice(0, 20);
           aa.people = _a.people.filter(function (n) { return typeof n === "string" && n; });
           aa.items = _a.items.filter(function (it) {
             return it && typeof it.cents === "number" && it.cents > 0 && aa.people.indexOf(it.payer) >= 0 && Array.isArray(it.parts);
@@ -1453,6 +1457,55 @@
       function aaSave() { try { localStorage.setItem("xm_aa", JSON.stringify(aa)); } catch (e) {} }
       function aaMoney(c) { return (c / 100).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
       function aaMsg(t) { document.getElementById("aa-msg").textContent = t || ""; }
+      function aaDate(ts) { var d = new Date(ts); function p(n) { return ("0" + n).slice(-2); } return (d.getMonth() + 1) + "月" + d.getDate() + "日 " + p(d.getHours()) + ":" + p(d.getMinutes()); }
+      /* AA history start */
+      var aaHist = [];
+      try {
+        var _h = JSON.parse(localStorage.getItem("xm_aa_hist") || "[]");
+        if (Array.isArray(_h)) aaHist = _h.filter(function (r) { return r && typeof r.title === "string" && Array.isArray(r.people) && Array.isArray(r.items); }).slice(0, 50);
+      } catch (e) {}
+      function aaHistSave() { try { localStorage.setItem("xm_aa_hist", JSON.stringify(aaHist)); } catch (e) {} }
+      function aaSaveHist() {
+        if (!aa.items.length) { aaMsg("还没有花费，记一笔再保存"); return; }
+        var total = aa.items.reduce(function (s, x) { return s + x.cents; }, 0);
+        var title = (aa.title || "").trim() || aaDate(Date.now()) + "分账";
+        aaHist.unshift({ id: Date.now(), title: title, ts: Date.now(), people: aa.people.slice(), items: JSON.parse(JSON.stringify(aa.items)), total: total });
+        if (aaHist.length > 50) aaHist.length = 50;
+        aaHistSave();
+        aa.items = []; aa.title = "";
+        aaMsg("已保存到历史记录：「" + title + "」"); aaSave(); aaRender(); buzz();
+      }
+      function aaLoadHist(rec) {
+        aa.title = rec.title; aa.people = rec.people.slice();
+        aa.items = JSON.parse(JSON.stringify(rec.items));
+        aaParts = {}; aa.people.forEach(function (n) { aaParts[n] = true; });
+        aaPayer = (rec.items[0] && rec.items[0].payer) || aa.people[0] || null;
+        aaMsg("已打开「" + rec.title + "」"); aaSave(); aaRender();
+      }
+      function aaRenderHist() {
+        var box = document.getElementById("aa-hist"); box.innerHTML = "";
+        document.getElementById("aa-hist-title").textContent = "历史记录 · " + aaHist.length + " 笔";
+        if (!aaHist.length) { box.appendChild(mk("div", "fx-label", "还没有保存过的记录，结完账点「保存这笔记录」就会留在这里")); return; }
+        aaHist.forEach(function (rec) {
+          var row = mk("div", "aa-row"), main = mk("div", "main");
+          main.appendChild(mk("div", "", rec.title));
+          main.appendChild(mk("div", "sub", aaDate(rec.ts) + " · " + rec.items.length + " 笔 · " + rec.people.join("、")));
+          row.appendChild(main); row.appendChild(mk("div", "amt", aaMoney(rec.total)));
+          var view = mk("button", "aa-btn ghost", "查看"); view.type = "button"; view.style.cssText = "padding:8px 12px";
+          var del = mk("button", "aa-del", "✕"); del.type = "button"; del.setAttribute("aria-label", "删除 " + rec.title);
+          var armedV = false, armedD = false;
+          view.addEventListener("click", function () {
+            if (aa.items.length && !armedV) { armedV = true; view.textContent = "覆盖当前？"; setTimeout(function () { armedV = false; view.textContent = "查看"; }, 3000); return; }
+            aaLoadHist(rec);
+          });
+          del.addEventListener("click", function () {
+            if (!armedD) { armedD = true; del.textContent = "确认？"; setTimeout(function () { armedD = false; del.textContent = "✕"; }, 3000); return; }
+            aaHist.splice(aaHist.indexOf(rec), 1); aaHistSave(); aaRenderHist();
+          });
+          row.appendChild(view); row.appendChild(del); box.appendChild(row);
+        });
+      }
+      /* AA history end */
       function mk(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
 
       /* AA compute start */
@@ -1549,7 +1602,7 @@
         aaMsg(""); aaSave(); aaRender(); buzz();
       }
       function aaSummary() {
-        var r = aaCompute(aa.people, aa.items), out = ["AA 分账", "合计 " + aaMoney(r.total) + "，共 " + aa.people.length + " 人"];
+        var r = aaCompute(aa.people, aa.items), out = [(aa.title || "").trim() || "AA 分账", "合计 " + aaMoney(r.total) + "，共 " + aa.people.length + " 人"];
         if (r.everyone && aa.people.length) out.push("人均 " + aaMoney(Math.round(r.total / aa.people.length)));
         out.push("");
         aa.items.forEach(function (it) { out.push(it.name + " " + aaMoney(it.cents) + "（" + it.payer + " 付，" + it.parts.length + " 人分摊）"); });
@@ -1575,6 +1628,9 @@
         if (!aaPayer && aa.people.length) aaPayer = aa.people[0];
         aa.people.forEach(function (n) { if (aaParts[n] === undefined) aaParts[n] = true; });
         document.getElementById("aa-pcount").textContent = aa.people.length ? "· " + aa.people.length + " 人" : "";
+        var titleInp = document.getElementById("aa-title");
+        if (document.activeElement !== titleInp) titleInp.value = aa.title || "";
+        aaRenderHist();
 
         var pe = document.getElementById("aa-people"), py = document.getElementById("aa-payer"), pt = document.getElementById("aa-parts");
         pe.innerHTML = ""; py.innerHTML = ""; pt.innerHTML = "";
@@ -1625,6 +1681,8 @@
         }
       }
       document.getElementById("aa-addp").addEventListener("click", aaAddPerson);
+      document.getElementById("aa-title").addEventListener("input", function () { aa.title = this.value.slice(0, 20); aaSave(); });
+      document.getElementById("aa-savehist").addEventListener("click", aaSaveHist);
       document.getElementById("aa-name").addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); aaAddPerson(); } });
       document.getElementById("aa-additem").addEventListener("click", aaAddItem);
       document.getElementById("aa-copy").addEventListener("click", aaCopy);
@@ -1643,7 +1701,7 @@
       document.getElementById("aa-reset").addEventListener("click", function () {
         var b = this;
         if (!aaResetArmed) { aaResetArmed = true; b.textContent = "再点一次确认"; setTimeout(function () { aaResetArmed = false; b.textContent = "清空全部"; }, 3000); return; }
-        aaResetArmed = false; b.textContent = "清空全部"; aa = { people: [], items: [] }; aaParts = {}; aaPayer = null; aaMsg(""); aaSave(); aaRender();
+        aaResetArmed = false; b.textContent = "清空全部"; aa = { title: "", people: [], items: [] }; aaParts = {}; aaPayer = null; aaMsg(""); aaSave(); aaRender();
       });
 
       /* ===== AI 识别 ===== */
