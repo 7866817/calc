@@ -631,8 +631,9 @@
               <button class="aa-btn ghost full" id="aa-copy" type="button">复制结算结果</button>
             </div>
             <div class="fx-card" id="ai-card">
-              <div class="fx-label">AI 设置（用于「AI 识别」）</div>
-              <input id="ai-base" class="aa-input" type="text" autocapitalize="off" autocomplete="off" placeholder="接口地址">
+              <button type="button" id="ai-toggle" style="width:100%;background:none;border:0;padding:0;text-align:left;cursor:pointer;display:flex;justify-content:space-between;align-items:center"><span class="fx-label" style="margin:0">AI 设置（用于「AI 识别」）</span><span id="ai-toggle-state" style="font-size:13px;color:var(--muted,#888)"></span></button>
+              <div id="ai-body" style="display:none">
+              <input id="ai-base" class="aa-input" type="text" autocapitalize="off" autocomplete="off" placeholder="接口地址" style="margin-top:10px">
               <input id="ai-model" class="aa-input" type="text" autocapitalize="off" autocomplete="off" placeholder="模型名" style="margin-top:8px">
               <input id="ai-key" class="aa-input" type="password" autocomplete="off" placeholder="API 密钥" style="margin-top:8px">
               <div class="fx-label" style="margin-top:12px">备用 AI（主接口失败时自动轮换，不填则只用上面一个）</div>
@@ -641,6 +642,7 @@
               <input id="ai2-key" class="aa-input" type="password" autocomplete="off" placeholder="备用 API 密钥" style="margin-top:8px">
               <button class="aa-btn full" id="ai-save" type="button">保存</button>
               <div class="aa-preview" id="ai-hint">密钥只保存在本机，不会写进页面。识别时输入的文字会发给上面的服务商，请勿输入银行卡号、密码等敏感信息。</div>
+              </div>
             </div>
           </div>
         </div>
@@ -1687,7 +1689,23 @@
         try { localStorage.setItem("xm_ai", JSON.stringify(aiCfg)); localStorage.setItem("xm_ai2", JSON.stringify(aiCfg2)); } catch (e) {}
         var h = document.getElementById("ai-hint"), old = h.textContent;
         h.textContent = "已保存"; setTimeout(function () { h.textContent = old; }, 1500);
+        aiRefreshState();
       });
+      function aiRefreshState() {
+        var s = document.getElementById("ai-toggle-state");
+        s.textContent = (aiCfg.key ? "主密钥已填" : "未设置") + (aiCfg2.key ? " · 备用已填" : "") + " ▸";
+        if (aiBodyOpen) s.textContent = s.textContent.replace(" ▸", " ▾");
+      }
+      var aiBodyOpen = false;
+      try { aiBodyOpen = localStorage.getItem("xm_ai_open") === "1"; } catch (e) {}
+      document.getElementById("ai-toggle").addEventListener("click", function () {
+        aiBodyOpen = !aiBodyOpen;
+        document.getElementById("ai-body").style.display = aiBodyOpen ? "" : "none";
+        try { localStorage.setItem("xm_ai_open", aiBodyOpen ? "1" : "0"); } catch (e) {}
+        aiRefreshState();
+      });
+      document.getElementById("ai-body").style.display = aiBodyOpen ? "" : "none";
+      aiRefreshState();
 
       /* AI start */
       function aiExtractJson(c) {
@@ -1762,6 +1780,7 @@
         if (!text) { aaMsg("先在上面的框里写下花费的描述"); return; }
         if (!aiCfg.key) {
           aaMsg("先在页面最下面的「AI 设置」里填入 API 密钥");
+          if (!aiBodyOpen) { aiBodyOpen = true; document.getElementById("ai-body").style.display = ""; try { localStorage.setItem("xm_ai_open", "1"); } catch (e) {} aiRefreshState(); }
           document.getElementById("ai-card").scrollIntoView({ behavior: "smooth", block: "center" });
           return;
         }
