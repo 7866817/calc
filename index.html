@@ -618,10 +618,13 @@
               <input id="aa-title" class="aa-input" type="text" maxlength="20" placeholder="标题，比如：周六火锅（不填自动用日期）">
               <div class="aa-head" style="margin-top:12px"><span class="fx-label">有哪些人 <span id="aa-pcount"></span></span><button class="refresh-btn" id="aa-reset" type="button">清空全部</button></div>
               <div class="chips" id="aa-people"></div>
-              <div class="fx-label" style="margin-top:12px">谁付的钱</div>
-              <div class="chips" id="aa-payer"></div>
-              <div class="aa-head" style="margin-top:12px"><span class="fx-label">谁参与分摊</span><button class="refresh-btn" id="aa-allparts" type="button">全选</button></div>
-              <div class="chips" id="aa-parts"></div>
+              <button type="button" id="aa-split-toggle" style="width:100%;background:none;border:0;padding:0;text-align:left;cursor:pointer;display:flex;justify-content:space-between;align-items:center;margin-top:12px"><span class="fx-label" style="margin:0" id="aa-split-summary">这笔：先添加人员</span><span id="aa-split-state" style="font-size:13px;color:var(--muted,#888)">▸</span></button>
+              <div id="aa-split-body" style="display:none">
+                <div class="fx-label" style="margin-top:12px">谁付的钱</div>
+                <div class="chips" id="aa-payer"></div>
+                <div class="aa-head" style="margin-top:12px"><span class="fx-label">谁参与分摊</span><button class="refresh-btn" id="aa-allparts" type="button">全选</button></div>
+                <div class="chips" id="aa-parts"></div>
+              </div>
             </div>
             <div class="fx-card">
               <div class="fx-label">项目和金额（可以一次打多笔）</div>
@@ -1502,7 +1505,7 @@
 
       /* ================= AA 分账 ================= */
       var aa = { title: "", people: [], items: [] };
-      var aaPayer = null, aaParts = {}, aaResetArmed = false;
+      var aaPayer = null, aaParts = {}, aaResetArmed = false, aaSplitOpen = false;
       try {
         var _a = JSON.parse(localStorage.getItem("xm_aa") || "null");
         if (_a && Array.isArray(_a.people) && Array.isArray(_a.items)) {
@@ -1779,6 +1782,15 @@
           b3.addEventListener("click", function () { aaParts[n] = !aaParts[n]; aaRender(); }); pt.appendChild(b3);
         });
         document.getElementById("aa-allparts").textContent = aa.people.every(function (n) { return aaParts[n]; }) ? "全不选" : "全选";
+        var partNames = aa.people.filter(function (n) { return aaParts[n]; });
+        var splitSummary;
+        if (!aa.people.length) splitSummary = "这笔：先添加人员";
+        else if (!partNames.length) splitSummary = "这笔：" + aaPayer + " 付 · 没有人分摊";
+        else if (partNames.length === aa.people.length) splitSummary = "这笔：" + aaPayer + " 付 · 全员" + aa.people.length + "人分摊";
+        else splitSummary = "这笔：" + aaPayer + " 付 · " + partNames.join("、") + " 分摊";
+        document.getElementById("aa-split-summary").textContent = splitSummary;
+        document.getElementById("aa-split-state").textContent = aaSplitOpen ? "▾" : "▸";
+        document.getElementById("aa-split-body").style.display = aaSplitOpen ? "block" : "none";
         aaPreview();
 
         var r = aaCompute(aa.people, aa.items);
@@ -1824,6 +1836,7 @@
         var all = aa.people.every(function (n) { return aaParts[n]; });
         aa.people.forEach(function (n) { aaParts[n] = !all; }); aaRender();
       });
+      document.getElementById("aa-split-toggle").addEventListener("click", function () { aaSplitOpen = !aaSplitOpen; aaRender(); });
       document.getElementById("aa-reset").addEventListener("click", function () {
         var b = this;
         if (!aaResetArmed) { aaResetArmed = true; b.textContent = "再点一次确认"; setTimeout(function () { aaResetArmed = false; b.textContent = "清空全部"; }, 3000); return; }
