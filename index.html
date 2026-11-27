@@ -646,10 +646,12 @@
               <input id="ai-base" class="aa-input" type="text" autocapitalize="off" autocomplete="off" placeholder="接口地址" style="margin-top:10px">
               <input id="ai-model" class="aa-input" type="text" autocapitalize="off" autocomplete="off" placeholder="模型名" style="margin-top:8px">
               <input id="ai-key" class="aa-input" type="password" autocomplete="off" placeholder="API 密钥" style="margin-top:8px">
+              <div class="aa-preview" id="ai-test-msg"></div>
               <div class="fx-label" style="margin-top:12px">备用 AI（主接口失败时自动轮换，不填则只用上面一个）</div>
               <input id="ai2-base" class="aa-input" type="text" autocapitalize="off" autocomplete="off" placeholder="备用接口地址">
               <input id="ai2-model" class="aa-input" type="text" autocapitalize="off" autocomplete="off" placeholder="备用模型名" style="margin-top:8px">
               <input id="ai2-key" class="aa-input" type="password" autocomplete="off" placeholder="备用 API 密钥" style="margin-top:8px">
+              <div class="aa-preview" id="ai2-test-msg"></div>
               <button class="aa-btn full" id="ai-save" type="button">保存</button>
               <div class="aa-preview" id="ai-hint">密钥只保存在本机，不会写进页面。识别时输入的文字会发给上面的服务商，请勿输入银行卡号、密码等敏感信息。</div>
               </div>
@@ -1799,12 +1801,60 @@
         var h = document.getElementById("ai-hint"), old = h.textContent;
         h.textContent = "已保存"; setTimeout(function () { h.textContent = old; }, 1500);
         aiRefreshState();
+        if (aiCfg.key) aiTestKey(1);
+        if (aiCfg2.key) aiTestKey(2);
       });
       function aiRefreshState() {
         var s = document.getElementById("ai-toggle-state");
         s.textContent = (aiCfg.key ? "主密钥已填" : "未设置") + (aiCfg2.key ? " · 备用已填" : "") + " ▸";
         if (aiBodyOpen) s.textContent = s.textContent.replace(" ▸", " ▾");
       }
+      /* 检测密钥：用当前输入框里的地址/模型/密钥发一次最小请求，
+         15 秒超时。测的是输入框里的值，没保存也能测。 */
+      function aiTestKey(which) {
+        var pre = which === 2 ? "ai2-" : "ai-";
+        var btn = document.getElementById(pre + "test"), msg = document.getElementById(pre + "test-msg");
+        var base = (document.getElementById(pre + "base").value.trim() || (which === 2 ? AI_BACKUP_DEFAULT.base : AI_DEFAULT.base)).replace(/\/+$/, "");
+        var model = document.getElementById(pre + "model").value.trim() || (which === 2 ? AI_BACKUP_DEFAULT.model : AI_DEFAULT.model);
+        var key = document.getElementById(pre + "key").value.replace(/\s+/g, "");
+        function show(t, ok) { msg.textContent = t; msg.style.color = ok ? "#1a9e6b" : "#e5484d"; }
+        if (!key) { show("", true); return; }
+        if (/[^\x00-\x7F]/.test(key)) { show("密钥里有中文或特殊字符，可能是复制了页面上打码显示的密钥（带 … 的那串不是完整密钥），请点密钥旁边的复制按钮重新复制", false); return; }
+        btn.disabled = true; btn.textContent = "检测中…"; show("", true);
+        var ctl = new AbortController(), timer = setTimeout(function () { ctl.abort(); }, 15000);
+        var body = { model: model, temperature: 0.1, max_tokens: 5, messages: [{ role: "user", content: "hi" }] };
+        if (/bigmodel\.cn/.test(base)) body.thinking = { type: "disabled" };
+        fetch(base + "/chat/completions", {
+          method: "POST", signal: ctl.signal,
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + key },
+          body: JSON.stringify(body)
+        }).then(function (r) {
+          return r.json().then(function (j) {
+            if (!r.ok) {
+              var m = (j && j.error && (j.error.message || j.error.code)) || "";
+              var t;
+              if (r.status === 400 || r.status === 401) t = "密钥无效，请检查是否复制完整（不要复制页面上打码显示的那串）";
+              else if (r.status === 403) t = "密钥无权调用该模型";
+              else if (r.status === 404) t = "模型不存在或已下线，请检查模型名";
+              else if (r.status === 429) t = "请求太频繁，稍后再试";
+              else t = "HTTP " + r.status + (m ? "：" + m : "");
+              throw new Error(t);
+            }
+            return j;
+          });
+        }).then(function (j) {
+          var c = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
+          if (!c && !j.choices) throw new Error("接口返回异常");
+          show("密钥可用 ✓（" + model + " 已接通）", true);
+        }).catch(function (e) {
+          if (e.name === "AbortError") show("超时了，请检查网络后重试", false);
+          else if (e.message === "Failed to fetch") show("网络请求失败（网页版可能不允许跨域，请用安卓安装包，或检查网络）", false);
+          else show(e.message, false);
+        }).then(function () { clearTimeout(timer); btn.disabled = false; btn.textContent = "检测密钥"; });
+      }
+      /* 自动检测：密钥输完离开输入框、或点保存后，自动测一次，不用手动点 */
+      document.getElementById("ai-key").addEventListener("change", function () { aiTestKey(1); });
+      document.getElementById("ai2-key").addEventListener("change", function () { aiTestKey(2); });
       var aiBodyOpen = false;
       try { aiBodyOpen = localStorage.getItem("xm_ai_open") === "1"; } catch (e) {}
       document.getElementById("ai-toggle").addEventListener("click", function () {
