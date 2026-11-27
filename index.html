@@ -202,10 +202,14 @@
       }
       .hist-toggle svg { width: 16px; height: 16px; transition: transform 0.2s; }
       .hist-toggle.open svg { transform: rotate(180deg); }
-      .fx-jump {
+      .jump-row {
         position: absolute;
         left: 20px;
         bottom: 15px;
+        display: flex;
+        gap: 20px;
+      }
+      .fx-jump {
         border: 0;
         background: transparent;
         color: var(--teal);
@@ -214,7 +218,6 @@
         cursor: pointer;
         padding: 4px 2px;
       }
-      #aa-jump { left: auto; right: 20px; }
       .history-panel {
         position: absolute;
         top: 0;
@@ -513,8 +516,10 @@
           <div class="hist-line" id="hist-line"></div>
           <div class="main-line" id="main-line" aria-live="polite">0</div>
           <div class="preview-line" id="preview-line"></div>
-          <button class="fx-jump" id="fx-jump">按汇率换算 →</button>
-          <button class="fx-jump" id="aa-jump">加到 AA 分账 →</button>
+          <div class="jump-row">
+            <button class="fx-jump" id="fx-jump">按汇率换算 →</button>
+            <button class="fx-jump" id="aa-jump">加到 AA 分账 →</button>
+          </div>
         </div>
         <div class="fn-row">
           <button data-fn="lparen" aria-label="左括号">(</button>
