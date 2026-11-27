@@ -1855,6 +1855,9 @@
       /* 自动检测：密钥输完离开输入框、或点保存后，自动测一次，不用手动点 */
       document.getElementById("ai-key").addEventListener("change", function () { aiTestKey(1); });
       document.getElementById("ai2-key").addEventListener("change", function () { aiTestKey(2); });
+      /* 打开页面时，已填好的密钥也自动测一次，不用等点保存 */
+      if (aiCfg.key) aiTestKey(1);
+      if (aiCfg2.key) aiTestKey(2);
       var aiBodyOpen = false;
       try { aiBodyOpen = localStorage.getItem("xm_ai_open") === "1"; } catch (e) {}
       document.getElementById("ai-toggle").addEventListener("click", function () {
