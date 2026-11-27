@@ -627,7 +627,6 @@
               <div class="fx-label">项目和金额（可以一次打多笔）</div>
               <textarea id="aa-input" class="aa-input" rows="5" placeholder="例如：&#10;晚餐 130&#10;打车 350&#10;人名清单（每行一人）：&#10;老王 200&#10;小红"></textarea>
               <div class="aa-preview" id="aa-preview"></div>
-              <button class="aa-btn ghost" id="aa-fromcalc" type="button" style="margin-top:8px;padding:9px 14px">把计算器结果加进来</button>
               <div class="aa-msg" id="aa-msg"></div>
               <div class="aa-add" style="margin-top:12px">
                 <button class="aa-btn ghost" id="aa-ai" type="button" style="flex:1;padding:12px">AI 识别</button>
@@ -1508,6 +1507,7 @@
         var _a = JSON.parse(localStorage.getItem("xm_aa") || "null");
         if (_a && Array.isArray(_a.people) && Array.isArray(_a.items)) {
           if (typeof _a.title === "string") aa.title = _a.title.slice(0, 20);
+          if (typeof _a.srcId === "number") aa.srcId = _a.srcId;
           aa.people = _a.people.filter(function (n) { return typeof n === "string" && n; });
           aa.items = _a.items.filter(function (it) {
             return it && typeof it.cents === "number" && it.cents > 0 && aa.people.indexOf(it.payer) >= 0 && Array.isArray(it.parts);
@@ -1531,15 +1531,20 @@
         if (!aa.items.length) { aaMsg("还没有花费，记一笔再保存"); return; }
         var total = aa.items.reduce(function (s, x) { return s + x.cents; }, 0);
         var title = (aa.title || "").trim() || aaDate(Date.now()) + "分账";
-        aaHist.unshift({ id: Date.now(), title: title, ts: Date.now(), people: aa.people.slice(), items: JSON.parse(JSON.stringify(aa.items)), total: total });
-        if (aaHist.length > 50) aaHist.length = 50;
+        var rec = { id: Date.now(), title: title, ts: Date.now(), people: aa.people.slice(), items: JSON.parse(JSON.stringify(aa.items)), total: total };
+        /* 从历史记录载入后继续记的，再次保存直接覆盖原来那条（原记录被删了就按新记录存） */
+        var idx = -1;
+        if (aa.srcId) { for (var i = 0; i < aaHist.length; i++) { if (aaHist[i].id === aa.srcId) { idx = i; break; } } }
+        if (idx >= 0) { rec.id = aaHist[idx].id; aaHist[idx] = rec; }
+        else { aaHist.unshift(rec); if (aaHist.length > 50) aaHist.length = 50; }
         aaHistSave();
-        aa.items = []; aa.title = "";
-        aaMsg("已保存到历史记录：「" + title + "」"); aaSave(); aaRender(); buzz();
+        aa.items = []; aa.title = ""; aa.srcId = null;
+        aaMsg(idx >= 0 ? ("已更新历史记录：「" + title + "」") : ("已保存到历史记录：「" + title + "」")); aaSave(); aaRender(); buzz();
       }
       function aaLoadHist(rec) {
         aa.title = rec.title; aa.people = rec.people.slice();
         aa.items = JSON.parse(JSON.stringify(rec.items));
+        aa.srcId = rec.id;
         aaParts = {}; aa.people.forEach(function (n) { aaParts[n] = true; });
         aaPayer = (rec.items[0] && rec.items[0].payer) || aa.people[0] || null;
         aaMsg("已打开「" + rec.title + "」"); aaSave(); aaRender();
@@ -1814,11 +1819,6 @@
       document.getElementById("aa-savehist").addEventListener("click", aaSaveHist);
       document.getElementById("aa-additem").addEventListener("click", aaAddItem);
       document.getElementById("aa-copy").addEventListener("click", aaCopy);
-      document.getElementById("aa-fromcalc").addEventListener("click", function () {
-        var v = currentCalcValue();
-        if (typeof v !== "number" || !isFinite(v) || v <= 0) { aaMsg("计算器里还没有可用的结果"); return; }
-        aaAppendValue(v);
-      });
       document.getElementById("aa-input").addEventListener("input", aaPreview);
       document.getElementById("aa-allparts").addEventListener("click", function () {
         var all = aa.people.every(function (n) { return aaParts[n]; });
