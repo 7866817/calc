@@ -1813,14 +1813,14 @@
          15 秒超时。测的是输入框里的值，没保存也能测。 */
       function aiTestKey(which) {
         var pre = which === 2 ? "ai2-" : "ai-";
-        var btn = document.getElementById(pre + "test"), msg = document.getElementById(pre + "test-msg");
+        var msg = document.getElementById(pre + "test-msg");
         var base = (document.getElementById(pre + "base").value.trim() || (which === 2 ? AI_BACKUP_DEFAULT.base : AI_DEFAULT.base)).replace(/\/+$/, "");
         var model = document.getElementById(pre + "model").value.trim() || (which === 2 ? AI_BACKUP_DEFAULT.model : AI_DEFAULT.model);
         var key = document.getElementById(pre + "key").value.replace(/\s+/g, "");
         function show(t, ok) { msg.textContent = t; msg.style.color = ok ? "#1a9e6b" : "#e5484d"; }
         if (!key) { show("", true); return; }
         if (/[^\x00-\x7F]/.test(key)) { show("密钥里有中文或特殊字符，可能是复制了页面上打码显示的密钥（带 … 的那串不是完整密钥），请点密钥旁边的复制按钮重新复制", false); return; }
-        btn.disabled = true; btn.textContent = "检测中…"; show("", true);
+        show("检测中…", true);
         var ctl = new AbortController(), timer = setTimeout(function () { ctl.abort(); }, 15000);
         var body = { model: model, temperature: 0.1, max_tokens: 5, messages: [{ role: "user", content: "hi" }] };
         if (/bigmodel\.cn/.test(base)) body.thinking = { type: "disabled" };
@@ -1850,7 +1850,7 @@
           if (e.name === "AbortError") show("超时了，请检查网络后重试", false);
           else if (e.message === "Failed to fetch") show("网络请求失败（网页版可能不允许跨域，请用安卓安装包，或检查网络）", false);
           else show(e.message, false);
-        }).then(function () { clearTimeout(timer); btn.disabled = false; btn.textContent = "检测密钥"; });
+        }).then(function () { clearTimeout(timer); });
       }
       /* 自动检测：密钥输完离开输入框、或点保存后，自动测一次，不用手动点 */
       document.getElementById("ai-key").addEventListener("change", function () { aiTestKey(1); });
