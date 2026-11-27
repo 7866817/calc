@@ -618,16 +618,16 @@
               <input id="aa-title" class="aa-input" type="text" maxlength="20" placeholder="标题，比如：周六火锅（不填自动用日期）">
               <div class="aa-head" style="margin-top:12px"><span class="fx-label">有哪些人 <span id="aa-pcount"></span></span><button class="refresh-btn" id="aa-reset" type="button">清空全部</button></div>
               <div class="chips" id="aa-people"></div>
+              <div class="fx-label" style="margin-top:12px">谁付的钱</div>
+              <div class="chips" id="aa-payer"></div>
+              <div class="aa-head" style="margin-top:12px"><span class="fx-label">谁参与分摊</span><button class="refresh-btn" id="aa-allparts" type="button">全选</button></div>
+              <div class="chips" id="aa-parts"></div>
             </div>
             <div class="fx-card">
               <div class="fx-label">项目和金额（可以一次打多笔）</div>
               <textarea id="aa-input" class="aa-input" rows="5" placeholder="例如：&#10;晚餐 130&#10;打车 350&#10;人名清单（每行一人）：&#10;老王 200&#10;小红"></textarea>
               <div class="aa-preview" id="aa-preview"></div>
               <button class="aa-btn ghost" id="aa-fromcalc" type="button" style="margin-top:8px;padding:9px 14px">把计算器结果加进来</button>
-              <div class="fx-label" style="margin-top:12px">谁付的钱</div>
-              <div class="chips" id="aa-payer"></div>
-              <div class="aa-head" style="margin-top:12px"><span class="fx-label">谁参与分摊</span><button class="refresh-btn" id="aa-allparts" type="button">全选</button></div>
-              <div class="chips" id="aa-parts"></div>
               <div class="aa-msg" id="aa-msg"></div>
               <div class="aa-add" style="margin-top:12px">
                 <button class="aa-btn ghost" id="aa-ai" type="button" style="flex:1;padding:12px">AI 识别</button>
@@ -1544,27 +1544,66 @@
         aaPayer = (rec.items[0] && rec.items[0].payer) || aa.people[0] || null;
         aaMsg("已打开「" + rec.title + "」"); aaSave(); aaRender();
       }
+      var aaHistDetailOpen = null;
+      /* 历史记录的就地展开：点查看直接在行下拉出这笔的明细（人、花费、转账建议），不用下滑到表单里看；“载入继续记”才把这笔装回当前表单 */
+      function aaHistDetail(rec) {
+        var d = mk("div", "aa-hist-detail");
+        d.appendChild(mk("div", "aa-sub", "人：" + rec.people.join("、")));
+        rec.items.forEach(function (it) {
+          var row = mk("div", "aa-row"), main = mk("div", "main");
+          main.appendChild(mk("div", "", it.name));
+          main.appendChild(mk("div", "sub", it.payer + " 付 · " + (it.parts.length === rec.people.length ? "全员分摊" : it.parts.join("、") + " 分摊")));
+          row.appendChild(main); row.appendChild(mk("div", "amt", aaMoney(it.cents)));
+          d.appendChild(row);
+        });
+        var r = aaCompute(rec.people, rec.items);
+        if (r.pays.length) {
+          d.appendChild(mk("div", "aa-sub", "转账建议（笔数最少）"));
+          r.pays.forEach(function (x) {
+            var row = mk("div", "aa-row");
+            row.appendChild(mk("div", "main", x.from + " → " + x.to));
+            row.appendChild(mk("div", "amt", aaMoney(x.c)));
+            d.appendChild(row);
+          });
+        } else {
+          d.appendChild(mk("div", "aa-sub", "已结清，无需转账"));
+        }
+        var load = mk("button", "aa-btn", "载入继续记"); load.type = "button"; load.style.cssText = "width:100%;padding:11px;margin-top:8px";
+        var armed = false;
+        load.addEventListener("click", function () {
+          if (aa.items.length && !armed) { armed = true; load.textContent = "覆盖当前？"; setTimeout(function () { armed = false; load.textContent = "载入继续记"; }, 3000); return; }
+          aaLoadHist(rec);
+        });
+        d.appendChild(load);
+        return d;
+      }
       function aaRenderHist() {
+        aaHistDetailOpen = null;
         var box = document.getElementById("aa-hist"); box.innerHTML = "";
         document.getElementById("aa-hist-title").textContent = "历史记录 · " + aaHist.length + " 笔";
         if (!aaHist.length) { box.appendChild(mk("div", "fx-label", "还没有保存过的记录，结完账点「保存这笔记录」就会留在这里")); return; }
         aaHist.forEach(function (rec) {
+          var wrap = mk("div", "aa-hist-item");
           var row = mk("div", "aa-row"), main = mk("div", "main");
           main.appendChild(mk("div", "", rec.title));
           main.appendChild(mk("div", "sub", aaDate(rec.ts) + " · " + rec.items.length + " 笔 · " + rec.people.join("、")));
           row.appendChild(main); row.appendChild(mk("div", "amt", aaMoney(rec.total)));
           var view = mk("button", "aa-btn ghost", "查看"); view.type = "button"; view.style.cssText = "padding:8px 12px";
           var del = mk("button", "aa-del", "✕"); del.type = "button"; del.setAttribute("aria-label", "删除 " + rec.title);
-          var armedV = false, armedD = false;
+          var armedD = false, detail = null;
           view.addEventListener("click", function () {
-            if (aa.items.length && !armedV) { armedV = true; view.textContent = "覆盖当前？"; setTimeout(function () { armedV = false; view.textContent = "查看"; }, 3000); return; }
-            aaLoadHist(rec);
+            if (detail) { wrap.removeChild(detail); detail = null; view.textContent = "查看"; aaHistDetailOpen = null; return; }
+            if (aaHistDetailOpen) { aaHistDetailOpen.wrap.removeChild(aaHistDetailOpen.detail); aaHistDetailOpen.btn.textContent = "查看"; aaHistDetailOpen = null; }
+            detail = aaHistDetail(rec);
+            wrap.appendChild(detail);
+            view.textContent = "收起";
+            aaHistDetailOpen = { wrap: wrap, detail: detail, btn: view };
           });
           del.addEventListener("click", function () {
             if (!armedD) { armedD = true; del.textContent = "确认？"; setTimeout(function () { armedD = false; del.textContent = "✕"; }, 3000); return; }
             aaHist.splice(aaHist.indexOf(rec), 1); aaHistSave(); aaRenderHist();
           });
-          row.appendChild(view); row.appendChild(del); box.appendChild(row);
+          row.appendChild(view); row.appendChild(del); wrap.appendChild(row); box.appendChild(wrap);
         });
       }
       /* AA history end */
