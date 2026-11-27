@@ -214,6 +214,7 @@
         cursor: pointer;
         padding: 4px 2px;
       }
+      #aa-jump { left: auto; right: 20px; }
       .history-panel {
         position: absolute;
         top: 0;
@@ -513,6 +514,7 @@
           <div class="main-line" id="main-line" aria-live="polite">0</div>
           <div class="preview-line" id="preview-line"></div>
           <button class="fx-jump" id="fx-jump">按汇率换算 →</button>
+          <button class="fx-jump" id="aa-jump">加到 AA 分账 →</button>
         </div>
         <div class="fn-row">
           <button data-fn="lparen" aria-label="左括号">(</button>
@@ -521,7 +523,7 @@
           <button data-fn="negate" aria-label="正负号">+/−</button>
         </div>
         <div class="keypad" id="keypad">
-          <button class="op" data-key="clear" aria-label="清除">C</button>
+          <button class="op" id="clear-btn" data-key="clear" aria-label="清除">C</button>
           <button class="op" data-key="op" data-val="/" aria-label="除">÷</button>
           <button class="op" data-key="op" data-val="*" aria-label="乘">×</button>
           <button class="op" data-key="back" aria-label="退格">
@@ -671,6 +673,7 @@
       var historyEmpty = document.getElementById("history-empty");
       var historyHead = document.getElementById("history-head");
       var historyClearBtn = document.getElementById("history-clear");
+      var clearBtn = document.getElementById("clear-btn");
 
       function buzz() { if (navigator.vibrate) { try { navigator.vibrate(8); } catch (e) {} } }
 
@@ -770,6 +773,7 @@
       }
 
       function renderCalc() {
+        updateClearBtn();
         if (errorState) {
           mainLine.textContent = "无法除以零";
           mainLine.classList.add("error");
@@ -917,8 +921,51 @@
         updateBringBtn();
       }
       function doClear() {
+        var head = ceHead();
+        if (head !== null) { expr = head; justEvaluated = false; renderCalc(); updateBringBtn(); return; }
         expr = ""; histLine.textContent = ""; justEvaluated = false; errorState = false; lastResult = null; repeatTail = null;
         renderCalc(); updateBringBtn();
+      }
+      /* 智能清除：算式里正在输入第二个数时，C 变成 CE，只清当前输入的数；
+         再点一下变回 C，清空整个算式。只有一个数、刚按完等号或出错时，都是 C。 */
+      function ceHead() {
+        if (justEvaluated || errorState || !expr) return null;
+        var m = expr.match(/^(.*[+\-*/])([\d.]+)$/);
+        if (!m) return null;
+        var before = m[1].slice(0, -1);
+        if (!/[\d.)%]/.test(before.slice(-1) || "")) return null;
+        return m[1];
+      }
+      function updateClearBtn() {
+        if (!clearBtn) return;
+        var ce = ceHead() !== null;
+        clearBtn.textContent = ce ? "CE" : "C";
+        clearBtn.setAttribute("aria-label", ce ? "清除当前输入" : "清除");
+      }
+      /* 把当前计算结果（保留两位小数）追加到 AA 输入框，作为新的一行 */
+      function fmt2(v) {
+        var r = Math.round(v * 100) / 100;
+        if (!isFinite(r) || Math.abs(r) >= 1e12) return plainNum(v);
+        return r.toFixed(2);
+      }
+      function aaAppendValue(v) {
+        var inp = document.getElementById("aa-input");
+        inp.value = inp.value.replace(/\s+$/, "") + (inp.value.trim() ? "\n" : "") + fmt2(v);
+        aaMsg(""); aaPreview();
+      }
+      var aaJumpTimer = null;
+      function aaJumpFromCalc() {
+        var btn = document.getElementById("aa-jump");
+        var v = currentCalcValue();
+        if (typeof v !== "number" || !isFinite(v) || v <= 0) {
+          btn.textContent = "没有可用结果";
+          if (aaJumpTimer) clearTimeout(aaJumpTimer);
+          aaJumpTimer = setTimeout(function () { btn.textContent = "加到 AA 分账 →"; }, 1600);
+          return;
+        }
+        aaAppendValue(v);
+        showTab("aa");
+        buzz();
       }
       function doBack() {
         if (errorState) { doClear(); return; }
@@ -996,6 +1043,7 @@
         bringCalcValue();
         showTab(true);
       });
+      document.getElementById("aa-jump").addEventListener("click", aaJumpFromCalc);
 
       /* ================= Currency ================= */
       var CURRENCIES = [
@@ -1689,9 +1737,7 @@
       document.getElementById("aa-fromcalc").addEventListener("click", function () {
         var v = currentCalcValue();
         if (typeof v !== "number" || !isFinite(v) || v <= 0) { aaMsg("计算器里还没有可用的结果"); return; }
-        var inp = document.getElementById("aa-input");
-        inp.value = inp.value.replace(/\s+$/, "") + (inp.value.trim() ? "\n" : "") + plainNum(v);
-        aaMsg(""); aaPreview();
+        aaAppendValue(v);
       });
       document.getElementById("aa-input").addEventListener("input", aaPreview);
       document.getElementById("aa-allparts").addEventListener("click", function () {
