@@ -610,14 +610,17 @@
         <div class="fx-scroll">
           <div class="fx-inner">
             <div class="fx-card">
+              <button type="button" id="aa-hist-toggle" style="width:100%;background:none;border:0;padding:0;text-align:left;cursor:pointer;display:flex;justify-content:space-between;align-items:center"><span class="fx-label" style="margin:0" id="aa-hist-title">历史记录</span><span id="aa-hist-state" style="font-size:13px;color:var(--muted,#888)"></span></button>
+              <div id="aa-hist-body" style="display:none"><div id="aa-hist"></div></div>
+            </div>
+            <div class="fx-card">
               <input id="aa-title" class="aa-input" type="text" maxlength="20" placeholder="标题，比如：周六火锅（不填自动用日期）">
               <div class="aa-head" style="margin-top:12px"><span class="fx-label">有哪些人 <span id="aa-pcount"></span></span><button class="refresh-btn" id="aa-reset" type="button">清空全部</button></div>
               <div class="chips" id="aa-people"></div>
-              <div class="aa-add"><input id="aa-name" class="aa-input" type="text" maxlength="8" placeholder="名字（留空自动取名）" enterkeyhint="done"><button class="aa-btn" id="aa-addp" type="button">添加</button></div>
             </div>
             <div class="fx-card">
               <div class="fx-label">项目和金额（可以一次打多笔）</div>
-              <textarea id="aa-input" class="aa-input" rows="5" placeholder="例如：&#10;晚餐 130&#10;打车 350&#10;也可以只写数字：130 350 80"></textarea>
+              <textarea id="aa-input" class="aa-input" rows="5" placeholder="例如：&#10;晚餐 130&#10;打车 350&#10;人名清单（每行一人）：&#10;老王 200&#10;小红"></textarea>
               <div class="aa-preview" id="aa-preview"></div>
               <button class="aa-btn ghost" id="aa-fromcalc" type="button" style="margin-top:8px;padding:9px 14px">把计算器结果加进来</button>
               <div class="fx-label" style="margin-top:12px">谁付的钱</div>
@@ -639,7 +642,6 @@
               <button class="aa-btn ghost full" id="aa-copy" type="button">复制结算结果</button>
               <button class="aa-btn full" id="aa-savehist" type="button" style="margin-top:8px">保存这笔记录</button>
             </div>
-            <div class="fx-card"><div class="fx-label" id="aa-hist-title">历史记录</div><div id="aa-hist"></div></div>
             <div class="fx-card" id="ai-card">
               <button type="button" id="ai-toggle" style="width:100%;background:none;border:0;padding:0;text-align:left;cursor:pointer;display:flex;justify-content:space-between;align-items:center"><span class="fx-label" style="margin:0">AI 设置（用于「AI 识别」）</span><span id="ai-toggle-state" style="font-size:13px;color:var(--muted,#888)"></span></button>
               <div id="ai-body" style="display:none">
@@ -1565,6 +1567,19 @@
         });
       }
       /* AA history end */
+      /* 历史记录折叠：默认收起，点标题展开，展开状态记在本机 */
+      var aaHistOpen = false;
+      try { aaHistOpen = localStorage.getItem("xm_hist_open") === "1"; } catch (e) {}
+      function aaHistRefresh() {
+        document.getElementById("aa-hist-state").textContent = aaHistOpen ? "▾" : "▸";
+        document.getElementById("aa-hist-body").style.display = aaHistOpen ? "" : "none";
+      }
+      document.getElementById("aa-hist-toggle").addEventListener("click", function () {
+        aaHistOpen = !aaHistOpen;
+        try { localStorage.setItem("xm_hist_open", aaHistOpen ? "1" : "0"); } catch (e) {}
+        aaHistRefresh();
+      });
+      aaHistRefresh();
       function mk(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
 
       /* AA compute start */
@@ -1596,15 +1611,6 @@
       }
       /* AA compute end */
 
-      function aaAddPerson() {
-        var inp = document.getElementById("aa-name");
-        var name = inp.value.trim();
-        if (!name) { var k = 1; while (aa.people.indexOf("成员" + k) >= 0) k++; name = "成员" + k; }
-        if (aa.people.indexOf(name) >= 0) { aaMsg("已经有「" + name + "」了"); return; }
-        aa.people.push(name); aaParts[name] = true;
-        if (!aaPayer) aaPayer = name;
-        inp.value = ""; aaMsg(""); aaSave(); aaRender();
-      }
       function aaRemovePerson(name) {
         if (aa.items.some(function (it) { return it.payer === name; })) { aaMsg(name + " 付过款，请先删除他付款的记录"); return; }
         aa.people.splice(aa.people.indexOf(name), 1);
@@ -1637,9 +1643,34 @@
         });
         return out;
       }
+      /* 人名清单：每行一个名字，可带金额，例如
+         老王 200 / 小红 / 小明 / 林 500
+         命中条件：至少 2 行，且至少一行是不带金额的纯名字（否则
+         “晚餐 130 / 打车 350”这种正常的多笔花费也会被误认成人）。
+         返回 null 表示不是人名清单，走正常 AI 识别。 */
+      function aaParseNameList(text) {
+        var lines = String(text).split(/[\n;；]+/).map(function (s) { return s.trim(); }).filter(Boolean);
+        if (lines.length < 2) return null;
+        var out = [], hasBare = false;
+        for (var i = 0; i < lines.length; i++) {
+          var m = lines[i].match(/^([^\d\s,，、:：]{1,8})(?:\s*(\d+(?:\.\d+)?)\s*(?:元|块)?)?$/);
+          if (!m) return null;
+          if (!m[2]) hasBare = true;
+          out.push({ name: m[1], cents: m[2] ? Math.round(parseFloat(m[2]) * 100) : null });
+        }
+        return hasBare ? out : null;
+      }
       /* AA parse end */
       function aaPreview() {
-        var inp = document.getElementById("aa-input"), el = document.getElementById("aa-preview"), list = aaParseBatch(inp.value);
+        var inp = document.getElementById("aa-input"), el = document.getElementById("aa-preview");
+        var nl = aaParseNameList(inp.value);
+        if (nl) {
+          var fresh = nl.filter(function (x) { return aa.people.indexOf(x.name) < 0; });
+          el.textContent = "人名清单 · " + nl.length + " 人：" + nl.map(function (x) { return x.name; }).join("、") +
+            (fresh.length ? "（新增 " + fresh.length + " 位）" : "（都已在列表中）") + "，点「AI 识别」添加";
+          return;
+        }
+        var list = aaParseBatch(inp.value);
         if (!list.length) { el.textContent = inp.value.trim() ? "没有识别到金额" : ""; return; }
         var total = list.reduce(function (s, x) { return s + x.cents; }, 0);
         var k = aa.people.filter(function (n) { return aaParts[n]; }).length;
@@ -1693,7 +1724,7 @@
 
         var pe = document.getElementById("aa-people"), py = document.getElementById("aa-payer"), pt = document.getElementById("aa-parts");
         pe.innerHTML = ""; py.innerHTML = ""; pt.innerHTML = "";
-        if (!aa.people.length) { pe.appendChild(mk("span", "fx-label", "还没有人，在下面输入名字添加")); }
+        if (!aa.people.length) { pe.appendChild(mk("span", "fx-label", "还没有人，点下面「AI 识别」，粘贴人名清单添加")); }
         aa.people.forEach(function (n) {
           var b = mk("button", "chip", n + "  ✕"); b.type = "button";
           b.addEventListener("click", function () { aaRemovePerson(n); }); pe.appendChild(b);
@@ -1739,10 +1770,8 @@
           });
         }
       }
-      document.getElementById("aa-addp").addEventListener("click", aaAddPerson);
       document.getElementById("aa-title").addEventListener("input", function () { aa.title = this.value.slice(0, 20); aaSave(); });
       document.getElementById("aa-savehist").addEventListener("click", aaSaveHist);
-      document.getElementById("aa-name").addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); aaAddPerson(); } });
       document.getElementById("aa-additem").addEventListener("click", aaAddItem);
       document.getElementById("aa-copy").addEventListener("click", aaCopy);
       document.getElementById("aa-fromcalc").addEventListener("click", function () {
@@ -1871,6 +1900,8 @@
         aiRefreshState();
       });
       document.getElementById("ai-body").style.display = aiBodyOpen ? "" : "none";
+      /* 网页版不显示 AI 设置（免密钥代理已够用）；安装包是 file:// 打开，保留 */
+      if (location.protocol !== "file:") document.getElementById("ai-card").style.display = "none";
       aiRefreshState();
 
       /* AI start */
@@ -1907,17 +1938,33 @@
         if (isFinite(hc) && hc > people.length && hc <= 30) {
           while (people.length < hc) { var nm = "成员" + k++; if (people.indexOf(nm) < 0) { people.push(nm); newNames.push(nm); } }
         }
-        if (!people.length) throw new Error("没有识别出参与的人，请先添加成员，或写明人数、名字");
-        return { people: people, newNames: newNames, items: plan };
+        if (!people.length) throw new Error("没有识别出参与的人，请在描述里写明人数或名字");
+        var title = (data.title && String(data.title).trim()) || null;
+        if (title) title = title.slice(0, 20);
+        return { people: people, newNames: newNames, items: plan, title: title };
       }
       /* AI end */
 
+      /* 把 AI 识别出的方案记下：标题栏空着时才用 AI 给的标题 */
+      function aiApplyPlan(plan) {
+        plan.newNames.forEach(function (n) { if (aa.people.indexOf(n) < 0) { aa.people.push(n); aaParts[n] = true; } });
+        if (!aaPayer) aaPayer = aa.people[0];
+        plan.items.forEach(function (it, i) {
+          var parts = it.all ? aa.people.slice() : it.parts.filter(function (n) { return aa.people.indexOf(n) >= 0; });
+          if (!parts.length) parts = aa.people.slice();
+          aa.items.push({ id: Date.now() + i, name: it.name || "花费" + (aa.items.length + 1), cents: it.cents, payer: it.payer || aaPayer, parts: parts });
+        });
+        if (plan.title && !(aa.title || "").trim()) aa.title = plan.title.slice(0, 20);
+        document.getElementById("aa-input").value = ""; document.getElementById("aa-ai-preview").innerHTML = "";
+        aaMsg(""); aaSave(); aaRender(); buzz();
+      }
       function aiShowPreview(plan) {
         var box = document.getElementById("aa-ai-preview");
         box.innerHTML = "";
         var wrap = mk("div", "ai-plan");
         wrap.appendChild(mk("div", "fx-label", "AI 识别结果，确认后才会记下"));
         if (plan.newNames.length) wrap.appendChild(mk("div", "aa-sub", "将新增成员：" + plan.newNames.join("、")));
+        if (plan.title && !(aa.title || "").trim()) wrap.appendChild(mk("div", "aa-sub", "标题：" + plan.title));
         plan.items.forEach(function (it) {
           var row = mk("div", "aa-row"), main = mk("div", "main");
           main.appendChild(mk("div", "", it.name || "（未命名）"));
@@ -1928,29 +1975,42 @@
         var no = mk("button", "aa-btn ghost", "取消"); no.type = "button"; no.style.flex = "1"; no.style.padding = "11px";
         var ok = mk("button", "aa-btn", "确认记下"); ok.type = "button"; ok.style.flex = "1"; ok.style.padding = "11px";
         no.addEventListener("click", function () { box.innerHTML = ""; });
-        ok.addEventListener("click", function () {
-          plan.newNames.forEach(function (n) { if (aa.people.indexOf(n) < 0) { aa.people.push(n); aaParts[n] = true; } });
-          if (!aaPayer) aaPayer = aa.people[0];
-          plan.items.forEach(function (it, i) {
-            var parts = it.all ? aa.people.slice() : it.parts.filter(function (n) { return aa.people.indexOf(n) >= 0; });
-            if (!parts.length) parts = aa.people.slice();
-            aa.items.push({ id: Date.now() + i, name: it.name || "花费" + (aa.items.length + 1), cents: it.cents, payer: it.payer || aaPayer, parts: parts });
-          });
-          document.getElementById("aa-input").value = ""; box.innerHTML = "";
-          aaMsg(""); aaSave(); aaRender(); buzz();
-        });
+        ok.addEventListener("click", function () { aiApplyPlan(plan); });
         btns.appendChild(no); btns.appendChild(ok); wrap.appendChild(btns); box.appendChild(wrap);
       }
       function aiRecognize() {
         var text = document.getElementById("aa-input").value.trim(), btn = document.getElementById("aa-ai");
         if (!text) { aaMsg("先在上面的框里写下花费的描述"); return; }
+        /* 人名清单直接加人，不用走 AI：带金额的行同时记一笔该人付款、全员分摊 */
+        var nl = aaParseNameList(text);
+        if (nl) {
+          var added = [];
+          nl.forEach(function (x) {
+            if (aa.people.indexOf(x.name) < 0) { aa.people.push(x.name); aaParts[x.name] = true; added.push(x.name); }
+          });
+          if (!aaPayer && aa.people.length) aaPayer = aa.people[0];
+          var items = 0;
+          nl.forEach(function (x, i) {
+            if (x.cents) {
+              aa.items.push({ id: Date.now() + i, name: "花费", cents: x.cents, payer: x.name, parts: aa.people.slice() });
+              items++;
+            }
+          });
+          document.getElementById("aa-input").value = "";
+          var nlMsg = added.length ? ("已添加 " + added.length + " 位成员：" + added.join("、")) : ("这 " + nl.length + " 位成员都已在列表中");
+          if (items) nlMsg += "；记下 " + items + " 笔花费";
+          aaMsg(nlMsg);
+          aaSave(); aaRender(); buzz();
+          return;
+        }
         var sys = "你是 AA 分账记账助手。把用户描述的花费整理成 JSON，只输出 JSON，不要任何解释，不要 markdown。\n" +
-          "格式：{\"headcount\": 总人数或null, \"items\": [{\"name\": \"项目名\", \"expr\": \"金额算式\", \"payer\": \"付款人或null\", \"parts\": [\"参与分摊的人\"]}]}\n" +
+          "格式：{\"title\": \"简短标题或null\", \"headcount\": 总人数或null, \"items\": [{\"name\": \"项目名\", \"expr\": \"金额算式\", \"payer\": \"付款人或null\", \"parts\": [\"参与分摊的人\"]}]}\n" +
           "规则：\n1. expr 只写数字和 + - * / ( )，保留用户写的算式，不要自己心算。\n" +
           "2. payer 是出钱的人；没说是谁就写 null。\n" +
           "3. parts 是分摊的人；大家一起、AA、所有人、或没说明时写 [\"*\"]；“除了X”就列出其余所有人的名字。\n" +
           "4. headcount 是文中提到的总人数（如“6个人AA”），没提到写 null。\n" +
-          "5. 名字尽量沿用已有成员。已有成员：" + (aa.people.length ? aa.people.join("、") : "（暂无）");
+          "5. 名字尽量沿用已有成员。已有成员：" + (aa.people.length ? aa.people.join("、") : "（暂无）") + "\n" +
+          "6. title 是这笔分账的简短标题（不超过10个字），根据内容起，比如“火锅”、“周六聚餐”、“大理旅行”；没有明确主题写 null。";
         function aiCall(cfg) {
           if (/[^\x00-\x7F]/.test(cfg.key)) return Promise.reject(new Error("密钥里有中文或特殊字符，可能是复制了页面上打码显示的密钥（带 … 的那串不是完整密钥），请点密钥旁边的复制按钮重新复制完整密钥后粘贴"));
           var body = { model: cfg.model, temperature: 0.1, messages: [{ role: "system", content: sys }, { role: "user", content: text }] };
