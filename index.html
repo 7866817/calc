@@ -618,7 +618,7 @@
               <input id="aa-title" class="aa-input" type="text" maxlength="20" placeholder="标题，比如：周六火锅（不填自动用日期）">
               <div class="aa-head" style="margin-top:12px"><span class="fx-label">有哪些人 <span id="aa-pcount"></span></span><button class="refresh-btn" id="aa-reset" type="button">清空全部</button></div>
               <div class="chips" id="aa-people"></div>
-              <button type="button" id="aa-split-toggle" style="width:100%;background:none;border:0;padding:0;text-align:left;cursor:pointer;display:flex;justify-content:space-between;align-items:center;margin-top:12px"><span class="fx-label" style="margin:0" id="aa-split-summary">这笔：先添加人员</span><span id="aa-split-state" style="font-size:13px;color:var(--muted,#888)">▸</span></button>
+              <button type="button" id="aa-split-toggle" style="width:100%;background:none;border:0;padding:0;text-align:left;cursor:pointer;display:flex;justify-content:space-between;align-items:center;margin-top:12px"><span class="fx-label" style="margin:0">谁付钱 · 谁分摊</span><span style="display:flex;align-items:center;gap:6px;min-width:0"><span id="aa-split-summary" style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">先添加人员</span><span id="aa-split-state" style="font-size:13px;color:var(--muted,#888)">▸</span></span></button>
               <div id="aa-split-body" style="display:none">
                 <div class="fx-label" style="margin-top:12px">谁付的钱</div>
                 <div class="chips" id="aa-payer"></div>
@@ -1784,10 +1784,10 @@
         document.getElementById("aa-allparts").textContent = aa.people.every(function (n) { return aaParts[n]; }) ? "全不选" : "全选";
         var partNames = aa.people.filter(function (n) { return aaParts[n]; });
         var splitSummary;
-        if (!aa.people.length) splitSummary = "这笔：先添加人员";
-        else if (!partNames.length) splitSummary = "这笔：" + aaPayer + " 付 · 没有人分摊";
-        else if (partNames.length === aa.people.length) splitSummary = "这笔：" + aaPayer + " 付 · 全员" + aa.people.length + "人分摊";
-        else splitSummary = "这笔：" + aaPayer + " 付 · " + partNames.join("、") + " 分摊";
+        if (!aa.people.length) splitSummary = "先添加人员";
+        else if (!partNames.length) splitSummary = aaPayer + " 付 · 没有人分摊";
+        else if (partNames.length === aa.people.length) splitSummary = aaPayer + " 付 · 全员" + aa.people.length + "人分摊";
+        else splitSummary = aaPayer + " 付 · " + partNames.join("、") + " 分摊";
         document.getElementById("aa-split-summary").textContent = splitSummary;
         document.getElementById("aa-split-state").textContent = aaSplitOpen ? "▾" : "▸";
         document.getElementById("aa-split-body").style.display = aaSplitOpen ? "block" : "none";
